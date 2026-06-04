@@ -810,8 +810,8 @@ function calculateKidney() {
     // --- Display ---
     const headers = ['CN'];
     blocks.forEach(b => {
-        headers.push(b.typeName + ' 角色及数量');
-        headers.push(b.typeName + ' 肾');
+        headers.push(b.typeName);
+        headers.push('肾');
     });
     headers.push('总肾（元）');
 
@@ -856,7 +856,7 @@ function exportKidneyResult() {
     if (!kidneyResultData || !kidneyResultData.results) { alert('没有可导出的数据'); return; }
     const { results, blocks, exportName } = kidneyResultData;
     const headers = ['CN'];
-    blocks.forEach(b => { headers.push(b.typeName + ' 角色及数量'); headers.push(b.typeName + ' 肾'); });
+    blocks.forEach(b => { headers.push(b.typeName); headers.push('肾'); });
     headers.push('总肾（元）');
     const rows = results.map(r => {
         const row = [r.CN];
