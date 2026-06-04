@@ -375,6 +375,28 @@ function readExcelFile(file) {
     });
 }
 
+function readAllSheets(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const result = {};
+                workbook.SheetNames.forEach(name => {
+                    const ws = workbook.Sheets[name];
+                    result[name] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                });
+                resolve(result);
+            } catch (err) {
+                reject(new Error('文件解析失败'));
+            }
+        };
+        reader.onerror = () => reject(new Error('文件读取失败'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
 function fmt(n) {
     if (n === null || n === undefined || isNaN(n)) return '';
     var num = Number(n);
@@ -629,8 +651,31 @@ async function handleKidneyFile(event) {
     statusEl.innerHTML = '';
 
     try {
-        const raw = await readExcelFile(file);
-        if (raw.length < 3) throw new Error('模板数据不足');
+        const sheets = await readAllSheets(file);
+        const raw = sheets['排表'];
+        if (!raw || raw.length < 3) throw new Error('未找到"排表"sheet或数据不足');
+
+        // --- Parse 定金 sheet ---
+        const depositMap = new Map();
+        if (sheets['定金']) {
+            const depositRows = sheets['定金'];
+            depositRows.slice(1).forEach(row => {
+                const cn = String(row[0] || '').trim();
+                const amt = parseFloat(row[1]);
+                if (cn && !isNaN(amt) && amt !== 0) depositMap.set(cn, amt);
+            });
+        }
+
+        // --- Parse 存肾 sheet ---
+        const savingMap = new Map();
+        if (sheets['存肾']) {
+            const savingRows = sheets['存肾'];
+            savingRows.slice(1).forEach(row => {
+                const cn = String(row[0] || '').trim();
+                const amt = parseFloat(row[1]);
+                if (cn && !isNaN(amt) && amt !== 0) savingMap.set(cn, amt);
+            });
+        }
 
         // --- Parse all 谷子类型 blocks ---
         const blocks = [];
@@ -663,7 +708,7 @@ async function handleKidneyFile(event) {
             b.adjSumOk = Math.abs(b.adjSum) < 0.001;
         });
 
-        kidneyTableData = { blocks };
+        kidneyTableData = { blocks, depositMap, savingMap };
 
         // --- Generate 均价 input fields ---
         let avgHTML = '';
@@ -710,6 +755,8 @@ async function handleKidneyFile(event) {
 
         statusEl.innerHTML = `<div class="alert alert-success">
             ✅ 导入 ${blocks.length} 个谷子类型 | ${blocks.reduce((s,b)=>s+b.roles.length,0)} 个角色 | 共 ${totalSlotsAll} 个有效格子
+            ${depositMap.size > 0 ? ' | 定金: ' + depositMap.size + '人' : ''}
+            ${savingMap.size > 0 ? ' | 存肾: ' + savingMap.size + '人' : ''}
         </div>`;
         previewEl.innerHTML = previewHTML;
         calcBtn.disabled = false;
@@ -730,7 +777,9 @@ function calculateKidney() {
     }
 
     const exportName = document.getElementById('kidneyExportName').value.trim() || '肾表结算结果';
-    const { blocks } = kidneyTableData;
+    const { blocks, depositMap, savingMap } = kidneyTableData;
+    const hasDeposit = depositMap && depositMap.size > 0;
+    const hasSaving = savingMap && savingMap.size > 0;
 
     // --- Read 均价 from inputs ---
     const avgPrices = [];
@@ -800,7 +849,11 @@ function calculateKidney() {
                 row[b.typeName + '_肾'] = 0;
             }
         });
-        row.总肾 = Math.round(grandTotal * 100) / 100;
+        const deposit = hasDeposit ? (depositMap.get(cn) || 0) : 0;
+        const saving = hasSaving ? (savingMap.get(cn) || 0) : 0;
+        row._deposit = deposit;
+        row._saving = saving;
+        row.总肾 = Math.round((grandTotal - deposit - saving) * 100) / 100;
         results.push(row);
     });
 
@@ -820,7 +873,7 @@ function calculateKidney() {
         });
     });
 
-    kidneyResultData = { results, exportName, blocks, avgPrices, detailRows };
+    kidneyResultData = { results, exportName, blocks, avgPrices, detailRows, depositMap, savingMap };
 
     // --- Display ---
     const headers = ['CN'];
@@ -828,6 +881,8 @@ function calculateKidney() {
         headers.push(b.typeName);
         headers.push('肾');
     });
+    if (hasDeposit) headers.push('定金');
+    if (hasSaving) headers.push('存肾');
     headers.push('总肾（元）');
 
     const rows = results.map(r => {
@@ -836,6 +891,8 @@ function calculateKidney() {
             row.push(r[b.typeName + '_roles'] || '');
             row.push(r[b.typeName + '_肾'] !== undefined ? fmt(r[b.typeName + '_肾']) : '0');
         });
+        if (hasDeposit) row.push(r._deposit || '');
+        if (hasSaving) row.push(r._saving || '');
         row.push(fmt(r.总肾));
         return row;
     });
@@ -843,12 +900,13 @@ function calculateKidney() {
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
     const sumRow = ['📊 合计'];
     blocks.forEach(() => { sumRow.push('', ''); });
+    if (hasDeposit) sumRow.push('');
+    if (hasSaving) sumRow.push('');
     sumRow.push(fmt(grandTotal));
     rows.push(sumRow);
 
-    const highlightCols = [];
-    blocks.forEach((b, i) => highlightCols.push(2 + i * 2)); // 肾 columns
-    highlightCols.push(1 + blocks.length * 2); // 总肾 column
+    const lastCol = 1 + blocks.length * 2 + (hasDeposit ? 1 : 0) + (hasSaving ? 1 : 0);
+    const highlightCols = [lastCol]; // highlight 总肾 column
 
     document.getElementById('kidneyResultStatus').innerHTML =
         `<div class="alert alert-info">
@@ -872,9 +930,13 @@ function calculateKidney() {
 
 function exportKidneyResult() {
     if (!kidneyResultData || !kidneyResultData.results) { alert('没有可导出的数据'); return; }
-    const { results, blocks, exportName } = kidneyResultData;
+    const { results, blocks, exportName, depositMap, savingMap } = kidneyResultData;
+    const hasDeposit = depositMap && depositMap.size > 0;
+    const hasSaving = savingMap && savingMap.size > 0;
     const headers = ['CN'];
     blocks.forEach(b => { headers.push(b.typeName); headers.push('肾'); });
+    if (hasDeposit) headers.push('定金');
+    if (hasSaving) headers.push('存肾');
     headers.push('总肾（元）');
     const rows = results.map(r => {
         const row = [r.CN];
@@ -882,12 +944,16 @@ function exportKidneyResult() {
             row.push(r[b.typeName + '_roles'] || '');
             row.push(r[b.typeName + '_肾'] !== undefined ? fmt(r[b.typeName + '_肾']) : '0');
         });
+        if (hasDeposit) row.push(r._deposit || '');
+        if (hasSaving) row.push(r._saving || '');
         row.push(fmt(r.总肾));
         return row;
     });
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
     const sumRow = ['合计'];
     blocks.forEach(() => { sumRow.push('', ''); });
+    if (hasDeposit) sumRow.push('');
+    if (hasSaving) sumRow.push('');
     sumRow.push(fmt(grandTotal));
     rows.push(sumRow);
     downloadExcel([headers, ...rows], `${exportName}.xlsx`);
