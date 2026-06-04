@@ -163,12 +163,12 @@
             <div class="card" onclick="showDetail('intl')">
                 <div class="card-icon intl">🌍</div>
                 <h3>国际表</h3>
-                <p>下载模板(cn/角色及数量) → 导入 → 自动解析总数量 → 填总运费 → 按数量比例分摊国际运费</p>
+                <p></p>
             </div>
             <div class="card" onclick="showDetail('kidney')">
                 <div class="card-icon kidney">💰</div>
                 <h3>肾表</h3>
-                <p>下载排表模板(调价+角色+CN列) → 导入数据(含均价) → 自动计算角色价格 → 按CN汇总角色数量与总肾</p>
+                <p></p>
             </div>
             <div class="card disabled">
                 <div class="card-icon refund">📋</div>
@@ -189,9 +189,6 @@
         <div class="workflow">
             <div class="panel">
                 <h3><span class="step-num">1</span> 下载模板</h3>
-                <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px;">
-                    下载标准模板，包含 <code>cn</code>、<code>角色及数量</code>（如"泉5,星2"）、<code>国际</code> 三列。
-                </p>
                 <button class="btn btn-outline" onclick="downloadIntlTemplate()">📥 下载国际表模板 (.xlsx)</button>
             </div>
             <div class="panel">
@@ -211,7 +208,6 @@
                     <div class="form-group"><label>总国际运费（元）</label><input type="number" id="intlTotalShipping" placeholder="输入总运费" step="0.01" min="0"></div>
                     <div class="form-group"><label>总数量</label><input type="number" id="intlTotalQty" placeholder="自动汇总" step="1" min="1" readonly></div>
                 </div>
-                <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:8px;">💡 导入后自动从"角色及数量"列解析并汇总总数量（如"泉5,星2"=7）。</p>
             </div>
             <div class="panel">
                 <h3><span class="step-num">4</span> 计算并生成新表</h3>
@@ -233,9 +229,6 @@
             <!-- Step 1: Download Template -->
             <div class="panel">
                 <h3><span class="step-num">1</span> 下载模板</h3>
-                <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px;">
-                    下载排表模板。结构：第1行=谷子类型/均价，第2行=<b>调价 | 角色 | CN列(1/2/3…)</b>，第3行起=每行一种角色的调价+角色名+各CN位置下的CN名称。
-                </p>
                 <button class="btn btn-outline" onclick="downloadKidneyTemplate()">📥 下载排表模板 (.xlsx)</button>
             </div>
 
