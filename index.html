@@ -377,8 +377,12 @@ function readExcelFile(file) {
 
 function fmt(n) {
     if (n === null || n === undefined || isNaN(n)) return '';
-    const s = Numberfmt(n);
-    return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
+    var num = Number(n);
+    if (!isFinite(num)) return '';
+    var fixed = num.toFixed(2);
+    var dot = fixed.indexOf('.');
+    if (dot === -1) return fixed;
+    return fixed.replace(/\.?0+$/, '');
 }
 
 function downloadExcel(data, filename) {
