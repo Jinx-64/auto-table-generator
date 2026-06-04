@@ -496,16 +496,16 @@ async function handleIntlFile(event) {
 }
 
 function calculateIntl() {
+    try {
     if (!intlData || intlData.length === 0) {
-        document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请先导入填写好的模板</div>';
+        document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请先导入模板</div>';
         return;
     }
     const totalShipping = parseFloat(document.getElementById('intlTotalShipping').value);
     const totalQty = parseInt(document.getElementById('intlTotalQty').value);
     if (isNaN(totalShipping) || totalShipping < 0) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请填写有效的总国际运费</div>'; return; }
-    if (isNaN(totalQty) || totalQty <= 0) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 总数量无效，请重新导入模板</div>'; return; }
+    if (isNaN(totalQty) || totalQty <= 0) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 总数量无效</div>'; return; }
 
-    // 国际 = (CN数量 / 总数量) × 总国际运费
     const results = intlData.map(d => {
         const qtyRatio = totalQty > 0 ? d.totalQty / totalQty : 0;
         const intlFee = Math.round(qtyRatio * totalShipping * 100) / 100;
@@ -526,6 +526,9 @@ function calculateIntl() {
         '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果：</h4>' + renderTable(headers, rows, [4]) +
         '<div style="margin-top:12px;"><button class="btn btn-accent" onclick="exportIntlResult()">📥 导出结果表 (.xlsx)</button></div>';
     document.getElementById('intlResultTable').scrollIntoView({ behavior: 'smooth' });
+    } catch(e) {
+        document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-error">❌ 错误: ' + e.message + '</div>';
+    }
 }
 
 function exportIntlResult() {
@@ -716,6 +719,7 @@ async function handleKidneyFile(event) {
 }
 
 function calculateKidney() {
+    try {
     if (!kidneyTableData) {
         document.getElementById('kidneyResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请先导入排表</div>';
         return;
@@ -857,6 +861,9 @@ function calculateKidney() {
         </div>`;
 
     document.getElementById('kidneyResultTable').scrollIntoView({ behavior: 'smooth' });
+    } catch(e) {
+        document.getElementById('kidneyResultStatus').innerHTML = '<div class="alert alert-error">❌ 错误: ' + e.message + '</div>';
+    }
 }
 
 function exportKidneyResult() {
