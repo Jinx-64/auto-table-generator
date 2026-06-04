@@ -6,29 +6,42 @@
     <title>自动生成表系统</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
+        /* ============ 卡通风格变量 ============ */
         :root {
-            --bg: #f0f4f8;
+            --bg: #fef9f0;
             --card-bg: #ffffff;
-            --primary: #4f6ef7;
-            --primary-dark: #3b54d4;
-            --accent1: #10b981;
-            --accent2: #f59e0b;
-            --accent3: #6b7280;
-            --text: #1e293b;
-            --text-secondary: #64748b;
-            --border: #e2e8f0;
-            --danger: #ef4444;
-            --radius: 16px;
-            --shadow: 0 4px 24px rgba(0,0,0,0.06);
-            --shadow-lg: 0 12px 48px rgba(0,0,0,0.1);
-            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --primary: #ff7eb3;
+            --primary-light: #ffe0ec;
+            --primary-dark: #e8669a;
+            --green: #51cf66;
+            --green-light: #e6f9e8;
+            --yellow: #ffc940;
+            --yellow-light: #fff7e0;
+            --purple: #b197fc;
+            --purple-light: #f3f0ff;
+            --blue: #74c0fc;
+            --blue-light: #e7f5ff;
+            --text: #5c4a3d;
+            --text-secondary: #a89880;
+            --border: #f0e6d8;
+            --danger: #ff6b6b;
+            --radius: 24px;
+            --radius-sm: 14px;
+            --shadow-sm: 0 3px 12px rgba(180,150,120,0.08);
+            --shadow: 0 6px 24px rgba(180,150,120,0.10);
+            --shadow-lg: 0 12px 40px rgba(180,150,120,0.14);
+            --transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', -apple-system, sans-serif;
             background: var(--bg);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(255,126,179,0.06) 0%, transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(116,192,252,0.06) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(177,151,252,0.04) 0%, transparent 50%);
             color: var(--text);
             min-height: 100vh;
             line-height: 1.6;
@@ -36,119 +49,531 @@
             flex-direction: column;
         }
 
+        /* ============ 头部 ============ */
         .header {
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            color: #fff; padding: 20px 0; text-align: center;
-            position: sticky; top: 0; z-index: 100;
-            box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+            background: linear-gradient(135deg, #ff9ec4 0%, #ffc77d 40%, #ffd97a 70%, #ffb3ba 100%);
+            color: #fff;
+            padding: 24px 0;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(255,126,179,0.20);
+            border-bottom: 4px dotted rgba(255,255,255,0.5);
         }
-        .header h1 { font-size: 1.6rem; font-weight: 700; }
-        .header .subtitle { font-size: 0.85rem; color: #94a3b8; margin-top: 2px; }
+        .header h1 {
+            font-size: 1.7rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.08);
+        }
+        .header .subtitle {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.85);
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
 
+        /* ============ 容器 ============ */
         .container { max-width: 1100px; width: 100%; margin: 0 auto; padding: 32px 20px; flex: 1; }
         .home-view { display: none; }
-        .home-view.active { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; flex: 1; padding-top: 15vh; }
+        .home-view.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            flex: 1;
+            padding-top: 12vh;
+        }
 
-        /* Home Cards */
-        .section-title { text-align: center; font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; }
-        .section-desc { text-align: center; color: var(--text-secondary); margin-bottom: 36px; font-size: 0.95rem; }
-        .card-grid { display: grid; grid-template-columns: repeat(3, 280px); gap: 24px; max-width: 960px; margin: 0 auto; justify-content: center; }
-        @media (max-width: 960px) { .card-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } }
-        .card {
-            background: var(--card-bg); border-radius: var(--radius); padding: 36px 28px 28px;
-            box-shadow: var(--shadow); cursor: pointer; transition: var(--transition);
-            border: 2px solid transparent; position: relative; overflow: hidden;
+        /* ============ 首页标题 ============ */
+        .section-title {
             text-align: center;
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 6px;
+            color: var(--text);
+            position: relative;
         }
-        .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
-        .card.disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; filter: grayscale(30%); }
-        .card.disabled:hover { transform: none; box-shadow: var(--shadow); border-color: transparent; }
-        .card-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 18px; }
-        .card-icon.intl { background: #eef2ff; color: #4f6ef7; }
-        .card-icon.kidney { background: #fef3c7; color: #f59e0b; }
-        .card-icon.refund { background: #f3f4f6; color: #6b7280; }
-        .card h3 { font-size: 1.2rem; margin-bottom: 6px; }
-        .card p { color: var(--text-secondary); font-size: 0.9rem; }
-        .card .badge { position: absolute; top: 16px; right: 16px; background: #e2e8f0; color: #64748b; font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 4px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--yellow));
+            margin: 12px auto 0;
+        }
+        .section-desc {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-size: 0.95rem;
+        }
 
-        /* Detail Views */
-        .detail-view { display: none; }
-        .detail-view.active { display: block; animation: fadeSlide 0.35s ease; }
-        @keyframes fadeSlide { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-        .back-btn {
-            display: inline-flex; align-items: center; gap: 6px; background: none;
-            border: 2px solid var(--border); padding: 10px 20px; border-radius: 10px;
-            cursor: pointer; font-size: 0.9rem; color: var(--text); transition: var(--transition);
-            margin-bottom: 24px; font-weight: 500;
+        /* ============ 卡片网格 ============ */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 260px);
+            gap: 28px;
+            max-width: 900px;
+            margin: 0 auto;
+            justify-content: center;
         }
-        .back-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+        @media (max-width: 900px) {
+            .card-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+        }
+
+        /* ============ 首页卡片 — 卡通泡泡风格 ============ */
+        .card {
+            background: var(--card-bg);
+            border-radius: 28px;
+            padding: 40px 24px 28px;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: var(--transition);
+            border: 3px solid transparent;
+            position: relative;
+            overflow: visible;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 6px;
+            border-radius: 6px;
+            background: #e0d8cc;
+            transition: var(--transition);
+        }
+        /* 卡片1(肾表) — 橙色主题 */
+        .card:nth-child(1):hover {
+            transform: translateY(-8px) scale(1.03);
+            border-color: #ffa94d;
+            background: linear-gradient(180deg, #fff9f0 0%, #fff 100%);
+            box-shadow: 0 12px 40px rgba(255,169,77,0.22);
+        }
+        .card:nth-child(1):hover::before { background: #ffa94d; width: 70px; }
+        .card:nth-child(1):hover .card-icon { background: #ffe8cc; }
+
+        /* 卡片2(国际表) — 蓝色主题 */
+        .card:nth-child(2):hover {
+            transform: translateY(-8px) scale(1.03);
+            border-color: #4dabf7;
+            background: linear-gradient(180deg, #f0f7ff 0%, #fff 100%);
+            box-shadow: 0 12px 40px rgba(77,171,247,0.22);
+        }
+        .card:nth-child(2):hover::before { background: #4dabf7; width: 70px; }
+        .card:nth-child(2):hover .card-icon { background: #d0ebff; }
+
+        /* 卡片3(国谷随心配) — 粉色主题 */
+        .card:nth-child(3):hover {
+            transform: translateY(-8px) scale(1.03);
+            border-color: #f06595;
+            background: linear-gradient(180deg, #fff0f5 0%, #fff 100%);
+            box-shadow: 0 12px 40px rgba(240,101,149,0.22);
+        }
+        .card:nth-child(3):hover::before { background: #f06595; width: 70px; }
+        .card:nth-child(3):hover .card-icon { background: #fce4ec; }
+
+        .card:active { transform: translateY(-2px) scale(0.98); }
+
+        .card-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 20px;
+            position: relative;
+            z-index: 1;
+            transition: var(--transition);
+        }
+        .card-icon::after {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            border: 3px dashed currentColor;
+            opacity: 0.25;
+            animation: spinSlow 20s linear infinite;
+        }
+        @keyframes spinSlow { to { transform: rotate(360deg); } }
+
+        .card-icon.kidney { background: #fff3e0; color: #ffa94d; }
+        .card-icon.intl  { background: var(--blue-light); color: #4dabf7; }
+        .card-icon.gukoku { background: #fce4ec; color: #f06595; }
+
+        .card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 6px;
+            font-weight: 800;
+            color: var(--text);
+        }
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .card .badge {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: var(--yellow-light);
+            color: #e67700;
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            border: 2px solid #ffd43b;
+        }
+
+        /* ============ 详情视图 ============ */
+        .detail-view { display: none; }
+        .detail-view.active { display: block; animation: fadeSlide 0.4s ease; }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ============ 返回按钮 ============ */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            border: 2.5px solid var(--border);
+            padding: 10px 22px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--text);
+            transition: var(--transition);
+            margin-bottom: 24px;
+            font-weight: 600;
+        }
+        .back-btn:hover {
+            background: #fff;
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateX(-4px);
+        }
         .back-btn svg { width: 18px; height: 18px; }
 
-        /* Panels */
+        /* ============ 面板 — 泡泡卡片 ============ */
         .workflow { display: flex; flex-direction: column; gap: 20px; }
-        .panel { background: var(--card-bg); border-radius: var(--radius); padding: 24px 28px; box-shadow: var(--shadow); border: 1px solid var(--border); }
-        .panel h3 { font-size: 1.05rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        .panel h3 .step-num {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 28px; height: 28px; border-radius: 50%; background: var(--primary);
-            color: #fff; font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+        .panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 28px 32px;
+            box-shadow: var(--shadow-sm);
+            border: 2px solid var(--border);
+            transition: var(--transition);
+            position: relative;
         }
+        .panel:hover {
+            border-color: #e8dcc8;
+            box-shadow: var(--shadow);
+        }
+        .panel h3 {
+            font-size: 1.05rem;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+        .panel h3 .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #ff9ec4);
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 800;
+            flex-shrink: 0;
+            box-shadow: 0 3px 10px rgba(255,126,179,0.25);
+        }
+
+        /* ============ 表单 ============ */
         .panel-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
         .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px; }
-        .form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
-        .form-group input { padding: 10px 14px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition); background: #fafbfc; color: var(--text); outline: none; }
-        .form-group input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(79,110,247,0.1); }
-        .form-group input:read-only { background: #f1f5f9; color: #64748b; }
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+        .form-group input {
+            padding: 12px 16px;
+            border: 2.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            transition: var(--transition);
+            background: #fefdfb;
+            color: var(--text);
+            outline: none;
+            font-weight: 500;
+        }
+        .form-group input:focus {
+            border-color: var(--primary);
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(255,126,179,0.08);
+        }
+        .form-group input:read-only {
+            background: #faf7f2;
+            color: #b8a898;
+            cursor: default;
+        }
 
-        /* Buttons */
-        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: var(--transition); white-space: nowrap; }
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-outline { background: #fff; color: var(--primary); border: 2px solid var(--primary); }
-        .btn-outline:hover { background: #eef2ff; }
-        .btn-accent { background: var(--accent1); color: #fff; }
-        .btn-accent:hover { background: #059669; }
-        .btn-lg { padding: 14px 32px; font-size: 1rem; border-radius: 12px; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+        /* ============ 按钮 ============ */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 11px 24px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: var(--transition);
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+        }
+        .btn:active { transform: scale(0.95); }
 
-        /* Upload */
-        .upload-zone { border: 3px dashed #cbd5e1; border-radius: 14px; padding: 36px; text-align: center; cursor: pointer; transition: var(--transition); background: #fafbfc; }
-        .upload-zone:hover, .upload-zone.drag-over { border-color: var(--primary); background: #eef2ff; }
-        .upload-zone .icon { font-size: 42px; margin-bottom: 10px; }
-        .upload-zone .text { color: var(--text-secondary); font-size: 0.9rem; }
-        .upload-zone .file-name { color: var(--primary); font-weight: 600; margin-top: 8px; font-size: 0.9rem; }
-        #intlFileInput, #kidneyFileInput { display: none; }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #ff9ec4);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(255,126,179,0.25);
+        }
+        .btn-primary:hover {
+            box-shadow: 0 6px 24px rgba(255,126,179,0.35);
+            transform: translateY(-2px);
+        }
 
-        /* Table */
-        .table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); max-height: 420px; overflow-y: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 500px; }
+        .btn-outline {
+            background: #fff;
+            color: var(--primary);
+            border: 2.5px solid var(--primary);
+        }
+        .btn-outline:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+        }
+
+        .btn-accent {
+            background: linear-gradient(135deg, var(--green), #69db7c);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(81,207,102,0.25);
+        }
+        .btn-accent:hover {
+            box-shadow: 0 6px 24px rgba(81,207,102,0.35);
+            transform: translateY(-2px);
+        }
+
+        .btn-lg {
+            padding: 15px 36px;
+            font-size: 1.05rem;
+            border-radius: 50px;
+        }
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(20%);
+        }
+
+        /* ============ 上传区域 ============ */
+        .upload-zone {
+            border: 3px dashed #e0d5c0;
+            border-radius: var(--radius);
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: #fefdfb;
+            position: relative;
+        }
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border-radius: calc(var(--radius) - 8px);
+            border: 2px dotted #f0e6d8;
+            pointer-events: none;
+        }
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: var(--primary);
+            background: #fff5f8;
+            transform: scale(1.01);
+        }
+        .upload-zone:hover::before, .upload-zone.drag-over::before {
+            border-color: #ffc9de;
+        }
+        .upload-zone .icon { font-size: 48px; margin-bottom: 12px; }
+        .upload-zone .text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .upload-zone .file-name {
+            color: var(--primary);
+            font-weight: 700;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        #intlFileInput, #kidneyFileInput, #gukokuFileInput { display: none; }
+
+        /* ============ 表格 ============ */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-sm);
+            border: 2px solid var(--border);
+            max-height: 420px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            min-width: 500px;
+        }
         table thead { position: sticky; top: 0; z-index: 2; }
-        table th { background: #f1f5f9; padding: 12px 14px; text-align: left; font-weight: 700; color: var(--text); border-bottom: 2px solid #cbd5e1; white-space: nowrap; }
-        table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
-        table tbody tr:hover { background: #f8fafc; }
-        .col-highlight { background: #fef3c7; font-weight: 700; }
-        .col-cn { font-weight: 700; color: var(--primary); }
-        .col-price { font-weight: 600; color: #059669; }
+        table th {
+            background: #fef9f0;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 800;
+            color: var(--text);
+            border-bottom: 3px solid #e8dcc8;
+            white-space: nowrap;
+            font-size: 0.82rem;
+            letter-spacing: 0.5px;
+        }
+        table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f5efe4;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        table tbody tr { transition: background 0.15s; }
+        table tbody tr:hover { background: #fef9f0; }
+        table tbody tr:last-child td { border-bottom: none; }
 
-        /* Alerts */
-        .alert { padding: 12px 18px; border-radius: 10px; font-size: 0.88rem; margin-top: 12px; }
-        .alert-info { background: #eef2ff; color: #3b54d4; border-left: 4px solid #4f6ef7; }
-        .alert-success { background: #ecfdf5; color: #059669; border-left: 4px solid #10b981; }
-        .alert-warning { background: #fffbeb; color: #92400e; border-left: 4px solid #f59e0b; }
-        .alert-error { background: #fef2f2; color: #991b1b; border-left: 4px solid #ef4444; }
+        .col-highlight {
+            background: #fff7e0;
+            font-weight: 700;
+            color: #e67700;
+        }
+        .col-cn {
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .col-price {
+            font-weight: 700;
+            color: #40c057;
+        }
 
-        .empty-state { text-align: center; padding: 48px 20px; color: #94a3b8; }
-        .empty-state .icon { font-size: 48px; margin-bottom: 10px; }
-        .footer { text-align: center; padding: 20px; color: #94a3b8; font-size: 0.8rem; }
+        /* ============ 提示框 ============ */
+        .alert {
+            padding: 14px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 0.88rem;
+            margin-top: 14px;
+            font-weight: 500;
+            border-left: 5px solid;
+        }
+        .alert-info    { background: #e7f5ff; color: #1971c2; border-left-color: #4dabf7; }
+        .alert-success { background: #e6f9e8; color: #2b8a3e; border-left-color: #51cf66; }
+        .alert-warning { background: #fff7e0; color: #e67700; border-left-color: #ffc940; }
+        .alert-error   { background: #fff0f0; color: #c92a2a; border-left-color: #ff6b6b; }
 
-        .tpl-label { display: inline-block; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 0.78rem; font-weight: 600; margin-left: 4px; }
+        /* ============ 空状态 ============ */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: #d0c4b0;
+        }
+        .empty-state .icon { font-size: 56px; margin-bottom: 12px; }
 
+        /* ============ 页脚 ============ */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #c4b8a8;
+            font-size: 0.8rem;
+            border-top: 2px dotted #f0e6d8;
+        }
+
+        .tpl-label {
+            display: inline-block;
+            background: var(--yellow-light);
+            color: #e67700;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-left: 4px;
+        }
+
+        /* ============ 详情页标题装饰 ============ */
+        .detail-view h2 {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* ============ 可爱微动效 ============ */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0); }
+            25% { transform: rotate(-5deg); }
+            75% { transform: rotate(5deg); }
+        }
+        .card:hover .card-icon { animation: wiggle 0.4s ease; }
+        .home-view.active .card:nth-child(1) .card-icon { animation: float 3s ease-in-out infinite; }
+        .home-view.active .card:nth-child(2) .card-icon { animation: float 3s ease-in-out 0.5s infinite; }
+        .home-view.active .card:nth-child(3) .card-icon { animation: float 3s ease-in-out 1s infinite; }
+
+        /* ============ 可爱滚动条 ============ */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #fef9f0; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb {
+            background: #e8dcc8;
+            border-radius: 8px;
+            border: 2px solid #fef9f0;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: #d0c0a8; }
+
+        .table-wrapper::-webkit-scrollbar-track { background: #fff; }
+        .table-wrapper::-webkit-scrollbar-thumb { border-color: #fff; }
+
+        /* ============ 响应式 ============ */
         @media (max-width: 640px) {
             .container { padding: 20px 12px; }
-            .card-grid { grid-template-columns: 1fr; }
+            .card-grid { grid-template-columns: 1fr; max-width: 340px; }
+            .card { padding: 32px 20px 24px; }
             .panel-row { flex-direction: column; }
             .form-group { min-width: 100%; }
             .btn-lg { width: 100%; justify-content: center; }
+            .panel { padding: 20px 16px; }
+            .header h1 { font-size: 1.3rem; }
         }
     </style>
 </head>
@@ -156,7 +581,7 @@
 
 <header class="header">
     <h1>📊 自动生成表系统</h1>
-    <p class="subtitle">国际运费计算 · 肾表结算 · 二调退补</p>
+    <p class="subtitle">国际运费计算 · 肾表结算 · 国谷随心配</p>
 </header>
 
 <div class="container">
@@ -176,11 +601,10 @@
                 <h3>国际表</h3>
                 <p></p>
             </div>
-            <div class="card disabled">
-                <div class="card-icon refund">📋</div>
-                <span class="badge">即将上线</span>
-                <h3>二调退补表</h3>
-                <p>功能开发中，敬请期待…</p>
+            <div class="card" onclick="showDetail('gukoku')">
+                <div class="card-icon gukoku">🎯</div>
+                <h3>国谷随心配</h3>
+                <p>排表自动分组，智能配车</p>
             </div>
         </div>
     </div>
@@ -270,6 +694,69 @@
         </div>
     </div>
 
+    <!-- ==================== 国谷随心配 VIEW ==================== -->
+    <div id="gukokuView" class="detail-view">
+        <button class="back-btn" onclick="showHome()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
+            返回首页
+        </button>
+        <h2 style="margin-bottom:20px;">🎯 国谷随心配 — 排表自动分组</h2>
+        <div class="workflow">
+            <!-- Step 1: Download Template -->
+            <div class="panel">
+                <h3><span class="step-num">1</span> 下载排表模板</h3>
+                <button class="btn btn-outline" onclick="downloadGukokuTemplate()">📥 下载排表模板 (.xlsx)</button>
+            </div>
+
+            <!-- Step 2: Import -->
+            <div class="panel">
+                <h3><span class="step-num">2</span> 导入填写好的排表</h3>
+                <div class="upload-zone" id="gukokuUploadZone" onclick="document.getElementById('gukokuFileInput').click()">
+                    <div class="icon">📁</div>
+                    <div class="text">点击此处选择文件，或将 .xlsx / .xls 文件拖拽到此处</div>
+                    <div class="file-name" id="gukokuFileName"></div>
+                </div>
+                <input type="file" id="gukokuFileInput" accept=".xlsx,.xls" onchange="handleGukokuFile(event)">
+                <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">💡 角色上面一定要写谷子类型（谷子名称）</p>
+                <div id="gukokuImportStatus"></div>
+                <div id="gukokuPreview" style="margin-top:14px;"></div>
+            </div>
+
+            <!-- Step 3: Parameters -->
+            <div class="panel">
+                <h3><span class="step-num">3</span> 参数设置</h3>
+                <div class="panel-row" style="margin-bottom:12px;">
+                    <div class="form-group"><label>混合拼车：谷子类型数</label><input type="number" id="gukokuMixTypes" value="3" step="1" min="1" max="20"></div>
+                    <div class="form-group"><label>每类型需几人</label><input type="number" id="gukokuMixPerType" value="6" step="1" min="1" max="100"></div>
+                </div>
+                <div class="panel-row" style="margin-bottom:12px;">
+                    <div class="form-group"><label>单类拼车：需几人</label><input type="number" id="gukokuSingleNeed" value="12" step="1" min="1" max="100"></div>
+                    <div class="form-group"><label>导出名称</label><input type="text" id="gukokuExportName" placeholder="例：国谷随心配结果"></div>
+                </div>
+            </div>
+
+            <!-- Step 4: Analyze & Choose -->
+            <div class="panel">
+                <h3><span class="step-num">4</span> 策略分析与选择</h3>
+                <button class="btn btn-primary btn-lg" id="gukokuCalcBtn" onclick="analyzeGukoku()" disabled>🔍 开始分析两种策略</button>
+                <div id="gukokuAnalyzeStatus"></div>
+                <div id="gukokuStrategySelect" style="margin-top:12px;"></div>
+            </div>
+
+            <!-- Step 5: Car Results (shown after strategy chosen) -->
+            <div class="panel" id="gukokuCarResultPanel" style="display:none;">
+                <h3><span class="step-num">5</span> 配车结果 — <span id="gukokuStrategyLabel"></span></h3>
+                <div id="gukokuResultTable" style="margin-top:16px;"></div>
+            </div>
+
+            <!-- Step 6: CN Summary -->
+            <div class="panel" id="gukokuCNSummaryPanel" style="display:none;">
+                <h3><span class="step-num">6</span> CN汇总 — <span id="gukokuCNSummaryLabel"></span></h3>
+                <div id="gukokuCNSummary"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="footer">
         © 2026 自动生成表系统 · 数据仅在浏览器本地处理，不会上传至服务器
     </div>
@@ -281,15 +768,20 @@ let intlData = null;
 let intlResultData = null;
 let kidneyTableData = null;   // { blocks: [{typeName, avgPrice, roles, cnColumns, adjSum, adjSumOk}] }
 let kidneyResultData = null;
+let gukokuRoleData = null;   // [{name, cns:[]}]
+let gukokuResultData = null;  // { cars: [{roles: [{name, cn}]}], carSize, exportName }
 
 // ===================== NAVIGATION =====================
 function showDetail(view) {
     document.getElementById('homeView').classList.remove('active');
     document.getElementById('intlView').classList.remove('active');
     document.getElementById('kidneyView').classList.remove('active');
+    document.getElementById('gukokuView').classList.remove('active');
     if (view === 'intl') document.getElementById('intlView').classList.add('active');
     else if (view === 'kidney') document.getElementById('kidneyView').classList.add('active');
+    else if (view === 'gukoku') document.getElementById('gukokuView').classList.add('active');
     document.querySelector('.header').style.display = 'none';
+    sessionStorage.setItem('currentView', view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -321,13 +813,34 @@ function resetAll() {
     document.getElementById('kidneyAvgInputs').innerHTML = '';
     document.getElementById('kidneyExportName').value = '';
     document.getElementById('kidneyFileInput').value = '';
+
+    // Reset gukoku
+    gukokuRoleData = null;
+    gukokuResultData = null;
+    document.getElementById('gukokuFileName').textContent = '';
+    document.getElementById('gukokuImportStatus').innerHTML = '';
+    document.getElementById('gukokuPreview').innerHTML = '';
+    document.getElementById('gukokuAnalyzeStatus').innerHTML = '';
+    document.getElementById('gukokuStrategySelect').innerHTML = '';
+    document.getElementById('gukokuResultTable').innerHTML = '';
+    document.getElementById('gukokuCalcBtn').disabled = true;
+    document.getElementById('gukokuMixTypes').value = '3';
+    document.getElementById('gukokuMixPerType').value = '6';
+    document.getElementById('gukokuSingleNeed').value = '12';
+    document.getElementById('gukokuExportName').value = '';
+    document.getElementById('gukokuFileInput').value = '';
+    document.getElementById('gukokuCarResultPanel').style.display = 'none';
+    document.getElementById('gukokuCNSummaryPanel').style.display = 'none';
+    document.getElementById('gukokuCNSummary').innerHTML = '';
 }
 
 function showHome() {
     document.getElementById('intlView').classList.remove('active');
     document.getElementById('kidneyView').classList.remove('active');
+    document.getElementById('gukokuView').classList.remove('active');
     document.getElementById('homeView').classList.add('active');
     document.querySelector('.header').style.display = '';
+    sessionStorage.removeItem('currentView');
     resetAll();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -354,6 +867,7 @@ function setupDragDrop(zoneId, fileInputId, handlerFn) {
 }
 setupDragDrop('intlUploadZone', 'intlFileInput', handleIntlFile);
 setupDragDrop('kidneyUploadZone', 'kidneyFileInput', handleKidneyFile);
+setupDragDrop('gukokuUploadZone', 'gukokuFileInput', handleGukokuFile);
 
 // ===================== EXCEL UTILS =====================
 function readExcelFile(file) {
@@ -965,6 +1479,470 @@ function exportKidneyDetail() {
     const rows = kidneyResultData.detailRows.map(r => [r.type, r.cn, r.role, (r.adjustment >= 0 ? '+' : '') + r.adjustment, fmt(r.price)]);
     downloadExcel([headers, ...rows], `${kidneyResultData.exportName}_明细.xlsx`);
 }
+
+// ===================== 国谷随心配 =====================
+function downloadGukokuTemplate() {
+    const templateData = [
+        ['A', '', '', '', '', ''],
+        ['角色', 1, 2, 3, 4, 5],
+        ['01', '', '', '', '', ''],
+        ['02', '', '', '', '', ''],
+        ['', '', '', '', '', ''],
+        ['B', '', '', '', '', ''],
+        ['角色', 1, 2, 3, 4, 5],
+        ['11', '', '', '', '', ''],
+        ['12', '', '', '', '', ''],
+    ];
+    downloadExcel(templateData, '排表模板.xlsx');
+}
+
+async function handleGukokuFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const fileNameEl = document.getElementById('gukokuFileName');
+    const statusEl = document.getElementById('gukokuImportStatus');
+    const previewEl = document.getElementById('gukokuPreview');
+    const calcBtn = document.getElementById('gukokuCalcBtn');
+
+    fileNameEl.textContent = `✅ 已选择: ${file.name}`;
+    statusEl.innerHTML = '';
+
+    try {
+        const raw = await readExcelFile(file);
+        if (raw.length < 2) throw new Error('排表数据不足，至少需要表头+1行数据');
+
+        const headers = raw[0].map(h => String(h).trim());
+
+        // Find CN columns (1-5) — look in any header row that has '角色'
+        let roleIdx = -1;
+        const cnColumns = [];
+        // Scan rows to find the "角色" header to locate columns
+        for (let r = 0; r < Math.min(raw.length, 5); r++) {
+            const row = raw[r];
+            const ri = row.findIndex(c => String(c || '').trim() === '角色');
+            if (ri !== -1) {
+                roleIdx = ri;
+                for (let i = 1; i <= 5; i++) {
+                    const idx = row.findIndex(c => String(c || '').trim() === String(i));
+                    if (idx !== -1) cnColumns.push({ index: idx, label: String(i) });
+                }
+                break;
+            }
+        }
+        if (roleIdx === -1) throw new Error('未找到"角色"表头行');
+        if (cnColumns.length === 0) throw new Error('未找到CN列(1-5)');
+
+        // Parse with type blocks: each block = [typeName row, "角色" header row, ...data rows...]
+        const roles = [];
+        let currentType = '未分类';
+
+        for (let i = 0; i < raw.length; i++) {
+            const row = raw[i];
+            const col0 = String(row[0] || '').trim();
+            const col1 = String(row[1] || '').trim();
+
+            // Skip empty rows
+            if (!col0 && !col1 && row.every(c => String(c || '').trim() === '')) continue;
+
+            // Detect "角色" header row → skip (we already parsed columns from it)
+            if (col0 === '角色') continue;
+
+            // Detect type header: col0 has text AND this isn't a data row
+            // A type header row has col0 non-empty and all CN columns empty
+            const allCNEmpty = cnColumns.every(c => String(row[c.index] || '').trim() === '');
+            if (allCNEmpty && col0) {
+                // This could be a type header like "A", "B", etc.
+                // Check if next row is "角色" header or if this looks like a type name
+                const nextRow = (i + 1 < raw.length) ? raw[i + 1] : null;
+                const nextCol0 = nextRow ? String(nextRow[0] || '').trim() : '';
+                if (nextCol0 === '角色' || !nextCol0 || /^[A-Za-z一-龥]+$/.test(col0)) {
+                    currentType = col0;
+                    continue;
+                }
+                // Otherwise, might be a role with no CNs → skip
+                continue;
+            }
+
+            // Regular data row: has role name + at least one CN
+            if (!col0) continue;
+            const cns = [];
+            cnColumns.forEach(c => {
+                const v = String(row[c.index] || '').trim();
+                if (v !== '') cns.push({ cn: v, col: c.label });
+            });
+            if (cns.length > 0) {
+                roles.push({ name: col0, type: currentType, cns, rowNum: i + 1 });
+            }
+        }
+
+        if (roles.length === 0) throw new Error('未检测到有效数据行');
+
+        // Flatten to individual entries
+        const entries = [];
+        roles.forEach(role => {
+            role.cns.forEach(c => {
+                entries.push({ role: role.name, type: role.type, cn: c.cn, col: c.col });
+            });
+        });
+
+        gukokuRoleData = { roles, entries };
+
+        const totalSlots = entries.length;
+        const types = [...new Set(roles.map(r => r.type))];
+
+        statusEl.innerHTML = `<div class="alert alert-success">✅ 导入 <b>${roles.length}</b> 个角色，<b>${types.length}</b> 种谷子类型(${types.join(', ')})，共 <b>${totalSlots}</b> 个槽位</div>`;
+
+        // Preview table
+        const previewHeaders = ['角色', '类型'];
+        cnColumns.forEach(c => previewHeaders.push('CN' + c.label));
+        const previewRows = roles.map(r => {
+            const row = [r.name, r.type];
+            const cnByCol = {};
+            r.cns.forEach(c => { cnByCol[c.col] = c.cn; });
+            cnColumns.forEach(c => {
+                row.push(cnByCol[c.label] || '');
+            });
+            return row;
+        });
+
+        previewEl.innerHTML = '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 导入数据预览：</h4>' +
+            renderTable(previewHeaders, previewRows);
+
+        calcBtn.disabled = false;
+    } catch (err) {
+        gukokuRoleData = null;
+        fileNameEl.textContent = '';
+        statusEl.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+        previewEl.innerHTML = '';
+        calcBtn.disabled = true;
+    }
+}
+
+function analyzeGukoku() {
+    try {
+    if (!gukokuRoleData || !gukokuRoleData.entries || gukokuRoleData.entries.length === 0) {
+        document.getElementById('gukokuAnalyzeStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请先导入排表</div>';
+        return;
+    }
+
+    const mixTypes = parseInt(document.getElementById('gukokuMixTypes').value) || 3;
+    const mixPerType = parseInt(document.getElementById('gukokuMixPerType').value) || 6;
+    const singleNeed = parseInt(document.getElementById('gukokuSingleNeed').value) || 12;
+    const exportName = document.getElementById('gukokuExportName').value.trim() || '国谷随心配结果';
+
+    const entries = gukokuRoleData.entries;
+
+    // ===== Count possible cars for each strategy (no actual building) =====
+    function countMixedCars() {
+        const typeSlots = new Map();
+        entries.forEach(e => typeSlots.set(e.type, (typeSlots.get(e.type) || 0) + 1));
+        let cars = 0;
+        // Phase 1: mixed cars (N types × M each)
+        while (true) {
+            const available = [...typeSlots.entries()]
+                .filter(([, v]) => v >= mixPerType)
+                .sort((a, b) => b[1] - a[1]);
+            if (available.length < mixTypes) break;
+            for (let i = 0; i < mixTypes; i++) {
+                const [t, v] = available[i];
+                typeSlots.set(t, v - mixPerType);
+            }
+            cars++;
+        }
+        // Phase 2: remaining single-type cars from leftovers
+        while (true) {
+            const available = [...typeSlots.entries()]
+                .filter(([, v]) => v >= singleNeed)
+                .sort((a, b) => b[1] - a[1]);
+            if (available.length === 0) break;
+            const [t, v] = available[0];
+            typeSlots.set(t, v - singleNeed);
+            cars++;
+        }
+        return cars;
+    }
+
+    function countSingleCars() {
+        const typeSlots = new Map();
+        entries.forEach(e => typeSlots.set(e.type, (typeSlots.get(e.type) || 0) + 1));
+        let cars = 0;
+        while (true) {
+            const available = [...typeSlots.entries()]
+                .filter(([, v]) => v >= singleNeed)
+                .sort((a, b) => b[1] - a[1]);
+            if (available.length === 0) break;
+            const [t, v] = available[0];
+            typeSlots.set(t, v - singleNeed);
+            cars++;
+        }
+        return cars;
+    }
+
+    const mixedCars = countMixedCars();
+    const singleCars = countSingleCars();
+
+    // Store for later use
+    gukokuRoleData._params = { mixTypes, mixPerType, singleNeed, exportName };
+    gukokuRoleData._mixedCars = mixedCars;
+    gukokuRoleData._singleCars = singleCars;
+
+    const mixedLabel = `混合拼车：${mixTypes}类 × 每类${mixPerType}人 = ${mixTypes * mixPerType}人/车`;
+    const singleLabel = `单类拼车：每类${singleNeed}人/车`;
+
+    document.getElementById('gukokuAnalyzeStatus').innerHTML =
+        `<div class="alert alert-info">📐 分析完成！<br>🔀 ${mixedLabel} → 可拼 <b>${mixedCars}</b> 车<br>🎯 ${singleLabel} → 可拼 <b>${singleCars}</b> 车</div>`;
+
+    document.getElementById('gukokuStrategySelect').innerHTML = `
+        <p style="margin-bottom:8px;font-weight:600;">请选择拼车策略：</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-lg" onclick="runGukokuStrategy('mixed')">
+                🔀 混合拼车（${mixedCars}车）
+            </button>
+            <button class="btn btn-accent btn-lg" onclick="runGukokuStrategy('single')">
+                🎯 单类拼车（${singleCars}车）
+            </button>
+        </div>`;
+
+    // Hide previous results
+    document.getElementById('gukokuCarResultPanel').style.display = 'none';
+    document.getElementById('gukokuCNSummaryPanel').style.display = 'none';
+
+    document.getElementById('gukokuStrategySelect').scrollIntoView({ behavior: 'smooth' });
+    } catch(e) {
+        document.getElementById('gukokuAnalyzeStatus').innerHTML = '<div class="alert alert-error">❌ 错误: ' + e.message + '</div>';
+    }
+}
+
+function runGukokuStrategy(strategyType) {
+    try {
+    const { mixTypes, mixPerType, singleNeed, exportName } = gukokuRoleData._params;
+    const entries = gukokuRoleData.entries.map(e => ({ ...e }));
+    const used = new Array(entries.length).fill(false);
+
+    const cnRemain = new Map();
+    entries.forEach(e => cnRemain.set(e.cn, (cnRemain.get(e.cn) || 0) + 1));
+    const typeRemain = new Map();
+    entries.forEach(e => typeRemain.set(e.type, (typeRemain.get(e.type) || 0) + 1));
+
+    const cars = [];
+    const isMixed = strategyType === 'mixed';
+    const perCar = isMixed ? mixTypes * mixPerType : singleNeed;
+
+    // Phase 1: Mixed cars (if strategy is mixed)
+    if (isMixed) {
+        while (true) {
+            const car = [];
+            const carCNs = new Set();
+            const typeCount = new Map();
+            const available = [...typeRemain.entries()]
+                .filter(([, v]) => v >= mixPerType)
+                .sort((a, b) => b[1] - a[1]);
+            if (available.length < mixTypes) break;
+            const chosenTypes = available.slice(0, mixTypes).map(([t]) => t);
+            for (const tp of chosenTypes) {
+                for (let k = 0; k < mixPerType; k++) {
+                    let bestIdx = -1, bestScore = -1;
+                    for (let i = 0; i < entries.length; i++) {
+                        if (used[i] || entries[i].type !== tp) continue;
+                        const remain = cnRemain.get(entries[i].cn) || 0;
+                        let score = remain;
+                        if (carCNs.has(entries[i].cn)) score += 100;
+                        if (score > bestScore) { bestScore = score; bestIdx = i; }
+                    }
+                    if (bestIdx === -1) break;
+                    const e = entries[bestIdx];
+                    car.push({ role: e.role, cn: e.cn, type: e.type });
+                    carCNs.add(e.cn);
+                    cnRemain.set(e.cn, cnRemain.get(e.cn) - 1);
+                    typeRemain.set(e.type, typeRemain.get(e.type) - 1);
+                    typeCount.set(e.type, (typeCount.get(e.type) || 0) + 1);
+                    used[bestIdx] = true;
+                }
+            }
+            if (!chosenTypes.every(t => (typeCount.get(t) || 0) >= mixPerType)) break;
+            cars.push(car);
+        }
+    }
+
+    // Phase 2: Single-type cars from remaining slots
+    const needPerCar = isMixed ? singleNeed : singleNeed;
+    while (true) {
+        const car = [];
+        const carCNs = new Set();
+        const available = [...typeRemain.entries()]
+            .filter(([, v]) => v >= singleNeed)
+            .sort((a, b) => b[1] - a[1]);
+        if (available.length === 0) break;
+        const chosenType = available[0][0];
+        for (let k = 0; k < singleNeed; k++) {
+            let bestIdx = -1, bestScore = -1;
+            for (let i = 0; i < entries.length; i++) {
+                if (used[i] || entries[i].type !== chosenType) continue;
+                const remain = cnRemain.get(entries[i].cn) || 0;
+                let score = remain;
+                if (carCNs.has(entries[i].cn)) score += 100;
+                if (score > bestScore) { bestScore = score; bestIdx = i; }
+            }
+            if (bestIdx === -1) break;
+            const e = entries[bestIdx];
+            car.push({ role: e.role, cn: e.cn, type: e.type });
+            carCNs.add(e.cn);
+            cnRemain.set(e.cn, cnRemain.get(e.cn) - 1);
+            typeRemain.set(e.type, typeRemain.get(e.type) - 1);
+            used[bestIdx] = true;
+        }
+        if (car.length === 0) break;
+        cars.push(car);
+    }
+
+    const strategyLabel = isMixed
+        ? `混合拼车（${mixTypes}类 × 每类${mixPerType}人 = ${mixTypes * mixPerType}人/车）`
+        : `单类拼车（每类${singleNeed}人/车）`;
+
+    gukokuResultData = { cars, carSize: perCar, exportName, strategyType, strategyLabel };
+
+    // Display
+    const chineseNums = ['一','二','三','四','五','六','七','八','九','十',
+        '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+        '廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+    function carLabel(idx) { return chineseNums[idx] || `第${idx + 1}`; }
+
+    let resultHTML = '';
+    let totalSlots = 0;
+    cars.forEach((car, idx) => {
+        const count = car.length;
+        totalSlots += count;
+        const sf = perCar - count;
+        let title = `🎯 第${carLabel(idx)}车（${count}/${perCar}）`;
+        title += sf > 0 ? ` <span style='color:#ef4444;font-weight:700;'>差${sf}个</span>` : ' <span style="color:#059669;">✅ 已满</span>';
+        resultHTML += `<h4 style="margin:16px 0 6px;font-size:1rem;">${title}</h4>`;
+        resultHTML += renderTable(['角色', '类型', 'CN'], car.map(r => [r.role, r.type, r.cn]), [0, 2]);
+    });
+
+    document.getElementById('gukokuStrategyLabel').textContent = strategyLabel;
+    document.getElementById('gukokuCarResultPanel').style.display = '';
+    document.getElementById('gukokuResultTable').innerHTML =
+        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 配车结果：</h4>' + resultHTML +
+        `<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-accent" onclick="exportGukokuResult()">📥 导出配车表 (.xlsx)</button>
+            <button class="btn btn-primary" onclick="calculateGukokuCN()">➡️ 下一步：生成CN汇总</button>
+        </div>`;
+    document.getElementById('gukokuCNSummaryPanel').style.display = 'none';
+    document.getElementById('gukokuCNSummary').innerHTML = '';
+    document.getElementById('gukokuCarResultPanel').scrollIntoView({ behavior: 'smooth' });
+    } catch(e) {
+        document.getElementById('gukokuResultTable').innerHTML = '<div class="alert alert-error">❌ 错误: ' + e.message + '</div>';
+    }
+}
+
+function calculateGukokuCN() {
+    try {
+    if (!gukokuResultData || !gukokuResultData.cars) {
+        alert('请先生成配车结果');
+        return;
+    }
+
+    const { cars } = gukokuResultData;
+
+    // Aggregate: CN → { roles: Map(type|role → count) }
+    const cnMap = new Map();
+    cars.forEach(car => {
+        car.forEach(r => {
+            if (!cnMap.has(r.cn)) cnMap.set(r.cn, new Map());
+            const roleMap = cnMap.get(r.cn);
+            const key = r.type + '|' + r.role;
+            roleMap.set(key, (roleMap.get(key) || 0) + 1);
+        });
+    });
+
+    // Sort CNs by total count (descending)
+    const sortedCNs = [...cnMap.entries()]
+        .map(([cn, roleMap]) => {
+            const roles = [...roleMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+            const roleStr = roles.map(([key, count]) => {
+                const [type, role] = key.split('|');
+                return count > 1 ? `${type}:${role}×${count}` : `${type}:${role}`;
+            }).join(', ');
+            const total = roles.reduce((s, [, c]) => s + c, 0);
+            return { cn, roleStr, roles, total };
+        })
+        .sort((a, b) => b.total - a.total);
+
+    // Display — format depends on strategy type
+    const isMixed = gukokuResultData.strategyType === 'mixed';
+    const headers = isMixed ? ['CN', '类型:角色及数量', '总数'] : ['CN', '角色及数量', '总数'];
+    const rows = sortedCNs.map(r => [r.cn, r.roleStr, r.total]);
+    const grandTotal = sortedCNs.reduce((s, r) => s + r.total, 0);
+    rows.push(['📊 合计', '', grandTotal]);
+
+    const summaryLabel = isMixed ? 'CN汇总 — 类型:角色及数量' : 'CN汇总 — 角色及数量';
+    document.getElementById('gukokuCNSummaryLabel').textContent = summaryLabel;
+    document.getElementById('gukokuCNSummaryPanel').style.display = '';
+    document.getElementById('gukokuCNSummary').innerHTML =
+        `<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 ${summaryLabel}：</h4>` +
+        renderTable(headers, rows, [0, 2]) +
+        `<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-accent" onclick="exportGukokuCN()">📥 导出CN汇总 (.xlsx)</button>
+        </div>`;
+
+    // Store for export
+    gukokuResultData.cnSummary = sortedCNs;
+
+    document.getElementById('gukokuCNSummary').scrollIntoView({ behavior: 'smooth' });
+    } catch(e) {
+        document.getElementById('gukokuCNSummary').innerHTML = '<div class="alert alert-error">❌ 错误: ' + e.message + '</div>';
+    }
+}
+
+function exportGukokuCN() {
+    if (!gukokuResultData || !gukokuResultData.cnSummary) { alert('没有可导出的CN汇总数据'); return; }
+    const { cnSummary, exportName, strategyType } = gukokuResultData;
+    const isMixed = strategyType === 'mixed';
+    const headers = isMixed ? ['CN', '类型:角色及数量', '总数'] : ['CN', '角色及数量', '总数'];
+    const rows = cnSummary.map(r => [r.cn, r.roleStr, r.total]);
+    rows.push(['合计', '', cnSummary.reduce((s, r) => s + r.total, 0)]);
+    downloadExcel([headers, ...rows], `${exportName}_CN汇总.xlsx`);
+}
+
+function exportGukokuResult() {
+    if (!gukokuResultData || !gukokuResultData.cars) { alert('没有可导出的数据'); return; }
+
+    const { cars, carSize, exportName } = gukokuResultData;
+    const chineseNums = ['一','二','三','四','五','六','七','八','九','十',
+        '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+        '廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+    function carLabel(idx) { return chineseNums[idx] || `第${idx + 1}`; }
+
+    // Build all-in-one sheet data
+    const allRows = [['车号', '角色', 'CN']];
+    cars.forEach((car, idx) => {
+        const label = `第${carLabel(idx)}车`;
+        car.forEach(r => {
+            allRows.push([label, r.role, r.cn]);
+        });
+        // Add blank separator row between cars
+        if (idx < cars.length - 1) {
+            allRows.push(['', '', '']);
+        }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(allRows);
+    if (allRows.length > 0) ws['!cols'] = allRows[0].map(() => ({ wch: 20 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '配车结果');
+    XLSX.writeFile(wb, `${exportName}.xlsx`);
+}
+
+// ===================== PAGE INIT — persist view across refresh =====================
+(function() {
+    const savedView = sessionStorage.getItem('currentView');
+    if (savedView) {
+        // Restore view but clear all content
+        showDetail(savedView);
+        resetAll();
+    }
+})();
 
 console.log('✅ 自动生成表系统已就绪');
 </script>
