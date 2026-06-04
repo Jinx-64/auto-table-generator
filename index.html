@@ -163,7 +163,7 @@
             <div class="card" onclick="showDetail('intl')">
                 <div class="card-icon intl">🌍</div>
                 <h3>国际表</h3>
-                <p>下载模板(cn/本体克重) → 导入数据 → 填写运费/总重/费率 → 按重量比例分摊运费，输出新价格</p>
+                <p>下载模板(cn/角色及数量) → 导入 → 自动解析总数量 → 填总运费 → 按数量比例分摊国际运费</p>
             </div>
             <div class="card" onclick="showDetail('kidney')">
                 <div class="card-icon kidney">💰</div>
@@ -185,12 +185,12 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
             返回首页
         </button>
-        <h2 style="margin-bottom:20px;">🌍 国际表 — 按重量分摊国际运费</h2>
+        <h2 style="margin-bottom:20px;">🌍 国际表 — 按数量分摊国际运费</h2>
         <div class="workflow">
             <div class="panel">
                 <h3><span class="step-num">1</span> 下载模板</h3>
                 <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px;">
-                    下载标准模板，包含 <code>cn</code>（人名/标识）和 <code>本体（克）</code>（重量）两列。
+                    下载标准模板，包含 <code>cn</code>、<code>角色及数量</code>（如"泉5,星2"）、<code>国际</code> 三列。
                 </p>
                 <button class="btn btn-outline" onclick="downloadIntlTemplate()">📥 下载国际表模板 (.xlsx)</button>
             </div>
@@ -209,10 +209,9 @@
                 <h3><span class="step-num">3</span> 填写计算参数</h3>
                 <div class="panel-row">
                     <div class="form-group"><label>总国际运费（元）</label><input type="number" id="intlTotalShipping" placeholder="输入总运费" step="0.01" min="0"></div>
-                    <div class="form-group"><label>总包裹重量（克）</label><input type="number" id="intlTotalWeight" placeholder="输入总重量" step="0.01" min="0.01"></div>
-                    <div class="form-group"><label>费率（元/克）</label><input type="number" id="intlRate" value="0.0240" step="0.0001" min="0" readonly></div>
+                    <div class="form-group"><label>总数量</label><input type="number" id="intlTotalQty" placeholder="自动汇总" step="1" min="1" readonly></div>
                 </div>
-                <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:8px;">💡 导入模板后会自动汇总总重量并填入"总包裹重量"。</p>
+                <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:8px;">💡 导入后自动从"角色及数量"列解析并汇总总数量（如"泉5,星2"=7）。</p>
             </div>
             <div class="panel">
                 <h3><span class="step-num">4</span> 计算并生成新表</h3>
@@ -378,12 +377,30 @@ function renderTable(headers, rows, highlightCols) {
     return html;
 }
 
-// ===================== 国际表 (保持不变) =====================
+// ===================== 国际表（新版 — cn/角色及数量/国际） =====================
+function parseRoleQty(roleStr) {
+    // Parse "泉5,星2" → [{role:"泉",qty:5}, {role:"星",qty:2}]
+    if (!roleStr || !roleStr.trim()) return [];
+    const parts = roleStr.split(/[,，]/);
+    const result = [];
+    parts.forEach(part => {
+        part = part.trim();
+        if (!part) return;
+        // Match: letters/chinese at start, digits at end
+        const m = part.match(/^(.+?)(\d+)$/);
+        if (m) {
+            result.push({ role: m[1].trim(), qty: parseInt(m[2]) || 0 });
+        }
+    });
+    return result;
+}
+
 function downloadIntlTemplate() {
     const templateData = [
-        ['cn', '本体（克）'],
-        ['张三', 100], ['王五', 200], ['李四', 200],
-        ['小红', 300], ['小白', 500], ['小黑', 400], ['小绿', 300],
+        ['cn', '角色及数量', '国际'],
+        ['张三', '泉5,星2', ''],
+        ['王五', '泉3,梦1', ''],
+        ['李四', '星4,泉2,梦2', ''],
     ];
     downloadExcel(templateData, '国际表模板.xlsx');
 }
@@ -395,7 +412,7 @@ async function handleIntlFile(event) {
     const statusEl = document.getElementById('intlImportStatus');
     const previewEl = document.getElementById('intlPreview');
     const calcBtn = document.getElementById('intlCalcBtn');
-    const weightInput = document.getElementById('intlTotalWeight');
+    const totalQtyInput = document.getElementById('intlTotalQty');
     fileNameEl.textContent = `✅ 已选择: ${file.name}`;
     statusEl.innerHTML = '';
 
@@ -404,29 +421,38 @@ async function handleIntlFile(event) {
         if (raw.length < 2) throw new Error('模板数据不足，至少需要表头+1行数据');
         const headers = raw[0].map(h => String(h).trim());
         const cnIdx = headers.findIndex(h => h.toLowerCase() === 'cn');
-        const weightIdx = headers.findIndex(h => h.includes('本体') || h.includes('克'));
+        const roleQtyIdx = headers.findIndex(h => h.includes('角色') || h.includes('数量'));
         if (cnIdx === -1) throw new Error('未找到"cn"列');
-        if (weightIdx === -1) throw new Error('未找到"本体（克）"列');
+        if (roleQtyIdx === -1) throw new Error('未找到"角色及数量"列');
 
         const dataRows = raw.slice(1).filter(r => {
             const cn = String(r[cnIdx] || '').trim();
-            const w = parseFloat(r[weightIdx]);
-            return cn !== '' && !isNaN(w) && w > 0;
+            return cn !== '';
         });
-        if (dataRows.length === 0) throw new Error('未检测到有效数据行');
+        if (dataRows.length === 0) throw new Error('未检测到有效数据行（cn不能为空）');
 
-        intlData = dataRows.map((row, idx) => ({
-            rowNum: idx + 1,
-            cn: String(row[cnIdx] || '').trim(),
-            本体: parseFloat(row[weightIdx]) || 0,
-        }));
+        intlData = dataRows.map((row, idx) => {
+            const roleStr = String(row[roleQtyIdx] || '').trim();
+            const roles = parseRoleQty(roleStr);
+            const totalQty = roles.reduce((s, r) => s + r.qty, 0);
+            return {
+                rowNum: idx + 1,
+                cn: String(row[cnIdx] || '').trim(),
+                roleStr: roleStr,
+                roles: roles,
+                totalQty: totalQty,
+            };
+        });
 
-        const totalWeight = intlData.reduce((s, d) => s + d.本体, 0);
-        weightInput.value = totalWeight.toFixed(1);
+        const grandTotalQty = intlData.reduce((s, d) => s + d.totalQty, 0);
+        totalQtyInput.value = grandTotalQty;
 
-        statusEl.innerHTML = `<div class="alert alert-success">✅ 成功导入 ${intlData.length} 条数据，总重量 <b>${totalWeight.toFixed(1)}</b> 克（已自动填入）</div>`;
+        statusEl.innerHTML = `<div class="alert alert-success">✅ 成功导入 ${intlData.length} 条数据，总数量 <b>${grandTotalQty}</b>（已自动填入）</div>`;
         previewEl.innerHTML = '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 导入数据预览：</h4>' +
-            renderTable(['cn', '本体（克）'], intlData.map(d => [d.cn, d.本体.toFixed(1)]));
+            renderTable(
+                ['cn', '角色及数量', '解析数量'],
+                intlData.map(d => [d.cn, d.roleStr, d.totalQty])
+            );
         calcBtn.disabled = false;
     } catch (err) {
         intlData = null;
@@ -443,36 +469,37 @@ function calculateIntl() {
         return;
     }
     const totalShipping = parseFloat(document.getElementById('intlTotalShipping').value);
-    const totalWeight = parseFloat(document.getElementById('intlTotalWeight').value);
-    const rate = parseFloat(document.getElementById('intlRate').value);
+    const totalQty = parseInt(document.getElementById('intlTotalQty').value);
     if (isNaN(totalShipping) || totalShipping < 0) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请填写有效的总国际运费</div>'; return; }
-    if (isNaN(totalWeight) || totalWeight <= 0) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请填写有效的总包裹重量</div>'; return; }
+    if (isNaN(totalQty) || totalQty <= 0) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 总数量无效，请重新导入模板</div>'; return; }
 
+    // 国际 = (CN数量 / 总数量) × 总国际运费
     const results = intlData.map(d => {
-        const weightRatio = totalWeight > 0 ? d.本体 / totalWeight : 0;
-        return { ...d, 重量占比: weightRatio, 分摊运费: weightRatio * totalShipping };
+        const qtyRatio = totalQty > 0 ? d.totalQty / totalQty : 0;
+        const intlFee = Math.round(qtyRatio * totalShipping * 100) / 100;
+        return { ...d, qtyRatio, intlFee };
     });
 
-    const summaryWeight = results.reduce((s, r) => s + r.本体, 0);
-    const summaryShipping = results.reduce((s, r) => s + r.分摊运费, 0);
+    const summaryQty = results.reduce((s, r) => s + r.totalQty, 0);
+    const summaryIntl = results.reduce((s, r) => s + r.intlFee, 0);
     intlResultData = results;
 
-    const headers = ['cn', '本体（克）', '重量占比(%)', '分摊运费（元）'];
-    const rows = results.map(r => [r.cn, r.本体.toFixed(1), (r.重量占比 * 100).toFixed(2), r.分摊运费.toFixed(2)]);
-    rows.push(['📊 合计', summaryWeight.toFixed(1), '100.00', summaryShipping.toFixed(2)]);
+    const headers = ['cn', '角色及数量', '数量', '占比(%)', '国际（元）'];
+    const rows = results.map(r => [r.cn, r.roleStr, r.totalQty, (r.qtyRatio * 100).toFixed(2), r.intlFee.toFixed(2)]);
+    rows.push(['📊 合计', '', summaryQty, '100.00', summaryIntl.toFixed(2)]);
 
     document.getElementById('intlResultStatus').innerHTML =
-        `<div class="alert alert-info">📐 <b>分摊运费</b> = (本体重量 ÷ ${totalWeight.toFixed(1)}g) × ${totalShipping.toFixed(2)}元 &nbsp;|&nbsp; 费率参考：${rate.toFixed(4)} 元/克</div>`;
+        `<div class="alert alert-info">📐 <b>国际运费</b> = (CN数量 ÷ 总数量${totalQty}) × 总国际运费${totalShipping.toFixed(2)}元</div>`;
     document.getElementById('intlResultTable').innerHTML =
-        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果：</h4>' + renderTable(headers, rows, [3]) +
+        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果：</h4>' + renderTable(headers, rows, [4]) +
         '<div style="margin-top:12px;"><button class="btn btn-accent" onclick="exportIntlResult()">📥 导出结果表 (.xlsx)</button></div>';
     document.getElementById('intlResultTable').scrollIntoView({ behavior: 'smooth' });
 }
 
 function exportIntlResult() {
     if (!intlResultData || intlResultData.length === 0) { alert('没有可导出的数据'); return; }
-    const headers = ['cn', '本体（克）', '重量占比(%)', '分摊运费（元）'];
-    const rows = intlResultData.map(r => [r.cn, r.本体.toFixed(1), (r.重量占比 * 100).toFixed(2), r.分摊运费.toFixed(2)]);
+    const headers = ['cn', '角色及数量', '数量', '国际（元）'];
+    const rows = intlResultData.map(r => [r.cn, r.roleStr, r.totalQty, r.intlFee.toFixed(2)]);
     downloadExcel([headers, ...rows], '国际表_计算结果.xlsx');
 }
 
