@@ -544,7 +544,8 @@ function parseKidneyBlock(raw, startIdx) {
     const row0 = raw[startIdx];
     const typeName = String(row0[0] || '').trim();
     const avgPrice = parseFloat(row0[1]);
-    if (!typeName || isNaN(avgPrice)) return null;
+    if (!typeName) return null;
+    if (isNaN(avgPrice)) avgPrice = 0;  // default 0 if not filled
 
     const row1 = raw[startIdx + 1];
     if (String(row1[0] || '').trim() !== '调价') return null;
