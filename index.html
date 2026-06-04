@@ -48,7 +48,8 @@
         /* Home Cards */
         .section-title { text-align: center; font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; }
         .section-desc { text-align: center; color: var(--text-secondary); margin-bottom: 36px; font-size: 0.95rem; }
-        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 960px; margin: 0 auto; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 280px); gap: 24px; max-width: 960px; margin: 0 auto; justify-content: center; }
+        @media (max-width: 960px) { .card-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } }
         .card {
             background: var(--card-bg); border-radius: var(--radius); padding: 36px 28px 28px;
             box-shadow: var(--shadow); cursor: pointer; transition: var(--transition);
