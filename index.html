@@ -375,6 +375,12 @@ function readExcelFile(file) {
     });
 }
 
+function fmt(n) {
+    if (n === null || n === undefined || isNaN(n)) return '';
+    const s = Numberfmt(n);
+    return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
+}
+
 function downloadExcel(data, filename) {
     const ws = XLSX.utils.aoa_to_sheet(data);
     if (data.length > 0) ws['!cols'] = data[0].map(() => ({ wch: 18 }));
@@ -511,11 +517,11 @@ function calculateIntl() {
     intlResultData = results;
 
     const headers = ['cn', '角色及数量', '数量', '占比(%)', '国际（元）'];
-    const rows = results.map(r => [r.cn, r.roleStr, r.totalQty, (r.qtyRatio * 100).toFixed(2), r.intlFee.toFixed(2)]);
-    rows.push(['📊 合计', '', summaryQty, '100.00', summaryIntl.toFixed(2)]);
+    const rows = results.map(r => [r.cn, r.roleStr, r.totalQty, fmt(r.qtyRatio * 100), fmt(r.intlFee)]);
+    rows.push(['📊 合计', '', summaryQty, '100.00', fmt(summaryIntl)]);
 
     document.getElementById('intlResultStatus').innerHTML =
-        `<div class="alert alert-info">📐 <b>国际运费</b> = (CN数量 ÷ 总数量${totalQty}) × 总国际运费${totalShipping.toFixed(2)}元</div>`;
+        `<div class="alert alert-info">📐 <b>国际运费</b> = (CN数量 ÷ 总数量${totalQty}) × 总国际运费${fmt(totalShipping)}元</div>`;
     document.getElementById('intlResultTable').innerHTML =
         '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果：</h4>' + renderTable(headers, rows, [4]) +
         '<div style="margin-top:12px;"><button class="btn btn-accent" onclick="exportIntlResult()">📥 导出结果表 (.xlsx)</button></div>';
@@ -525,7 +531,7 @@ function calculateIntl() {
 function exportIntlResult() {
     if (!intlResultData || intlResultData.length === 0) { alert('没有可导出的数据'); return; }
     const headers = ['cn', '角色及数量', '数量', '国际（元）'];
-    const rows = intlResultData.map(r => [r.cn, r.roleStr, r.totalQty, r.intlFee.toFixed(2)]);
+    const rows = intlResultData.map(r => [r.cn, r.roleStr, r.totalQty, fmt(r.intlFee)]);
     downloadExcel([headers, ...rows], '国际表_计算结果.xlsx');
 }
 
@@ -677,7 +683,7 @@ async function handleKidneyFile(event) {
 
             const adjStatus = b.adjSumOk
                 ? '<span style="color:#059669;">✅ 0</span>'
-                : `<span style="color:#ef4444;">⚠️ ${b.adjSum.toFixed(2)}</span>`;
+                : `<span style="color:#ef4444;">⚠️ ${fmt(b.adjSum)}</span>`;
 
             previewHTML += `<h4 style="margin:8px 0 4px;font-size:0.9rem;">📦 ${b.typeName}（均价=${b.avgPrice}，调价总和=${adjStatus}）</h4>`;
             previewHTML += '<div class="table-wrapper"><table><thead><tr>';
@@ -733,7 +739,7 @@ function calculateKidney() {
     for (let i = 0; i < blocks.length; i++) {
         if (!blocks[i].adjSumOk) {
             document.getElementById('kidneyResultStatus').innerHTML =
-                `<div class="alert alert-warning">⚠️ "${blocks[i].typeName}" 调价总和 = ${blocks[i].adjSum.toFixed(2)} ≠ 0！</div>`;
+                `<div class="alert alert-warning">⚠️ "${blocks[i].typeName}" 调价总和 = ${fmt(blocks[i].adjSum)} ≠ 0！</div>`;
             return;
         }
     }
@@ -819,16 +825,16 @@ function calculateKidney() {
         const row = [r.CN];
         blocks.forEach(b => {
             row.push(r[b.typeName + '_roles'] || '');
-            row.push(r[b.typeName + '_肾'] !== undefined ? r[b.typeName + '_肾'].toFixed(2) : '0.00');
+            row.push(r[b.typeName + '_肾'] !== undefined ? fmt(r[b.typeName + '_肾']) : '0');
         });
-        row.push(r.总肾.toFixed(2));
+        row.push(fmt(r.总肾));
         return row;
     });
 
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
     const sumRow = ['📊 合计'];
     blocks.forEach(() => { sumRow.push('', ''); });
-    sumRow.push(grandTotal.toFixed(2));
+    sumRow.push(fmt(grandTotal));
     rows.push(sumRow);
 
     const highlightCols = [];
@@ -862,15 +868,15 @@ function exportKidneyResult() {
         const row = [r.CN];
         blocks.forEach(b => {
             row.push(r[b.typeName + '_roles'] || '');
-            row.push(r[b.typeName + '_肾'] !== undefined ? r[b.typeName + '_肾'].toFixed(2) : '0.00');
+            row.push(r[b.typeName + '_肾'] !== undefined ? fmt(r[b.typeName + '_肾']) : '0');
         });
-        row.push(r.总肾.toFixed(2));
+        row.push(fmt(r.总肾));
         return row;
     });
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
     const sumRow = ['合计'];
     blocks.forEach(() => { sumRow.push('', ''); });
-    sumRow.push(grandTotal.toFixed(2));
+    sumRow.push(fmt(grandTotal));
     rows.push(sumRow);
     downloadExcel([headers, ...rows], `${exportName}.xlsx`);
 }
@@ -878,7 +884,7 @@ function exportKidneyResult() {
 function exportKidneyDetail() {
     if (!kidneyResultData || !kidneyResultData.detailRows) { alert('没有可导出的数据'); return; }
     const headers = ['谷子类型', 'CN', '角色', '调价', '价格(均价+调价)'];
-    const rows = kidneyResultData.detailRows.map(r => [r.type, r.cn, r.role, (r.adjustment >= 0 ? '+' : '') + r.adjustment, r.price.toFixed(2)]);
+    const rows = kidneyResultData.detailRows.map(r => [r.type, r.cn, r.role, (r.adjustment >= 0 ? '+' : '') + r.adjustment, fmt(r.price)]);
     downloadExcel([headers, ...rows], `${kidneyResultData.exportName}_明细.xlsx`);
 }
 
