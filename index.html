@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动生成表系统</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --primary: #4f6ef7;
+            --primary-dark: #3b54d4;
+            --accent1: #10b981;
+            --accent2: #f59e0b;
+            --accent3: #6b7280;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --radius: 16px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.06);
+            --shadow-lg: 0 12px 48px rgba(0,0,0,0.1);
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: #fff;
+            padding: 20px 0;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.02em; }
+        .header .subtitle { font-size: 0.85rem; color: #94a3b8; margin-top: 2px; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+
+        /* Home Cards */
+        .section-title { text-align: center; font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; }
+        .section-desc { text-align: center; color: var(--text-secondary); margin-bottom: 36px; font-size: 0.95rem; }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px; max-width: 960px; margin: 0 auto;
+        }
+        .card {
+            background: var(--card-bg); border-radius: var(--radius); padding: 36px 28px 28px;
+            box-shadow: var(--shadow); cursor: pointer; transition: var(--transition);
+            border: 2px solid transparent; position: relative; overflow: hidden;
+        }
+        .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
+        .card.disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; filter: grayscale(30%); }
+        .card.disabled:hover { transform: none; box-shadow: var(--shadow); border-color: transparent; }
+        .card-icon {
+            width: 56px; height: 56px; border-radius: 14px; display: flex;
+            align-items: center; justify-content: center; font-size: 28px; margin-bottom: 18px;
+        }
+        .card-icon.intl { background: #eef2ff; color: #4f6ef7; }
+        .card-icon.kidney { background: #fef3c7; color: #f59e0b; }
+        .card-icon.refund { background: #f3f4f6; color: #6b7280; }
+        .card h3 { font-size: 1.2rem; margin-bottom: 6px; }
+        .card p { color: var(--text-secondary); font-size: 0.9rem; }
+        .card .badge {
+            position: absolute; top: 16px; right: 16px; background: #e2e8f0;
+            color: #64748b; font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; font-weight: 600;
+        }
+
+        /* Detail Views */
+        .detail-view { display: none; }
+        .detail-view.active { display: block; animation: fadeSlide 0.35s ease; }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 6px; background: none;
+            border: 2px solid var(--border); padding: 10px 20px; border-radius: 10px;
+            cursor: pointer; font-size: 0.9rem; color: var(--text); transition: var(--transition);
+            margin-bottom: 24px; font-weight: 500;
+        }
+        .back-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .back-btn svg { width: 18px; height: 18px; }
+
+        /* Panels */
+        .workflow { display: flex; flex-direction: column; gap: 20px; }
+        .panel {
+            background: var(--card-bg); border-radius: var(--radius); padding: 24px 28px;
+            box-shadow: var(--shadow); border: 1px solid var(--border);
+        }
+        .panel h3 { font-size: 1.05rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .panel h3 .step-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 50%; background: var(--primary);
+            color: #fff; font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+        }
+        .panel-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px; }
+        .form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
+        .form-group input {
+            padding: 10px 14px; border: 2px solid var(--border); border-radius: 10px;
+            font-size: 0.95rem; transition: var(--transition); background: #fafbfc;
+            color: var(--text); outline: none;
+        }
+        .form-group input:focus {
+            border-color: var(--primary); background: #fff;
+            box-shadow: 0 0 0 3px rgba(79,110,247,0.1);
+        }
+        .form-group input:read-only { background: #f1f5f9; color: #64748b; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px;
+            border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+            border: none; transition: var(--transition); white-space: nowrap;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: #fff; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: #eef2ff; }
+        .btn-accent { background: var(--accent1); color: #fff; }
+        .btn-accent:hover { background: #059669; }
+        .btn-warning { background: var(--accent2); color: #fff; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-lg { padding: 14px 32px; font-size: 1rem; border-radius: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 3px dashed #cbd5e1; border-radius: 14px; padding: 36px;
+            text-align: center; cursor: pointer; transition: var(--transition); background: #fafbfc;
+        }
+        .upload-zone:hover, .upload-zone.drag-over { border-color: var(--primary); background: #eef2ff; }
+        .upload-zone .icon { font-size: 42px; margin-bottom: 10px; }
+        .upload-zone .text { color: var(--text-secondary); font-size: 0.9rem; }
+        .upload-zone .file-name { color: var(--primary); font-weight: 600; margin-top: 8px; font-size: 0.9rem; }
+        #intlFileInput, #kidneyFileInput { display: none; }
+
+        /* Table */
+        .table-wrapper {
+            overflow-x: auto; border-radius: 12px; border: 1px solid var(--border);
+            max-height: 420px; overflow-y: auto;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 500px; }
+        table thead { position: sticky; top: 0; z-index: 2; }
+        table th {
+            background: #f1f5f9; padding: 12px 14px; text-align: left;
+            font-weight: 700; color: var(--text); border-bottom: 2px solid #cbd5e1; white-space: nowrap;
+        }
+        table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+        table tbody tr:hover { background: #f8fafc; }
+        .col-highlight { background: #fef3c7; font-weight: 700; }
+
+        /* Alerts */
+        .alert {
+            padding: 12px 18px; border-radius: 10px; font-size: 0.88rem; margin-top: 12px;
+        }
+        .alert-info { background: #eef2ff; color: #3b54d4; border-left: 4px solid #4f6ef7; }
+        .alert-success { background: #ecfdf5; color: #059669; border-left: 4px solid #10b981; }
+        .alert-warning { background: #fffbeb; color: #92400e; border-left: 4px solid #f59e0b; }
+        .alert-error { background: #fef2f2; color: #991b1b; border-left: 4px solid #ef4444; }
+
+        .empty-state { text-align: center; padding: 48px 20px; color: #94a3b8; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 10px; }
+        .footer { text-align: center; padding: 20px; color: #94a3b8; font-size: 0.8rem; }
+
+        /* Template preview highlight */
+        .tpl-label {
+            display: inline-block; background: #fef3c7; color: #92400e;
+            padding: 2px 8px; border-radius: 4px; font-size: 0.78rem; font-weight: 600; margin-left: 6px;
+        }
+
+        @media (max-width: 640px) {
+            .container { padding: 20px 12px; }
+            .card-grid { grid-template-columns: 1fr; }
+            .panel-row { flex-direction: column; }
+            .form-group { min-width: 100%; }
+            .btn-lg { width: 100%; justify-content: center; }
+            .header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <h1>📊 自动生成表系统</h1>
+    <p class="subtitle">国际运费计算 · 肾表结算 · 二调退补</p>
+</header>
+
+<div class="container">
+
+    <!-- ==================== HOME VIEW ==================== -->
+    <div id="homeView" class="home-view">
+        <h2 class="section-title">选择功能模块</h2>
+        <p class="section-desc">请点击下方卡片进入对应的表格处理功能</p>
+        <div class="card-grid">
+            <div class="card" onclick="showDetail('intl')">
+                <div class="card-icon intl">🌍</div>
+                <h3>国际表</h3>
+                <p>下载模板(cn/本体克重) → 导入数据 → 填写运费/总重/费率 → 按重量比例分摊运费，输出新价格</p>
+            </div>
+            <div class="card" onclick="showDetail('kidney')">
+                <div class="card-icon kidney">💰</div>
+                <h3>肾表</h3>
+                <p>下载矩阵模板(调价行+CN×角色列) → 导入数据 → 填写均价 → 按CN汇总角色数量与总肾金额</p>
+            </div>
+            <div class="card disabled">
+                <div class="card-icon refund">📋</div>
+                <span class="badge">即将上线</span>
+                <h3>二调退补表</h3>
+                <p>功能开发中，敬请期待…</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 国际表 VIEW ==================== -->
+    <div id="intlView" class="detail-view">
+        <button class="back-btn" onclick="showHome()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
+            返回首页
+        </button>
+        <h2 style="margin-bottom:20px;">🌍 国际表 — 按重量分摊国际运费</h2>
+        <div class="workflow">
+            <!-- Step 1: Download Template -->
+            <div class="panel">
+                <h3><span class="step-num">1</span> 下载模板</h3>
+                <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px;">
+                    下载标准模板，包含 <code>cn</code>（人名/标识）和 <code>本体（克）</code>（重量）两列。
+                </p>
+                <button class="btn btn-outline" onclick="downloadIntlTemplate()">
+                    📥 下载国际表模板 (.xlsx)
+                </button>
+            </div>
+
+            <!-- Step 2: Import -->
+            <div class="panel">
+                <h3><span class="step-num">2</span> 导入填写好的模板</h3>
+                <div class="upload-zone" id="intlUploadZone" onclick="document.getElementById('intlFileInput').click()">
+                    <div class="icon">📁</div>
+                    <div class="text">点击此处选择文件，或将 .xlsx / .xls 文件拖拽到此处</div>
+                    <div class="file-name" id="intlFileName"></div>
+                </div>
+                <input type="file" id="intlFileInput" accept=".xlsx,.xls" onchange="handleIntlFile(event)">
+                <div id="intlImportStatus"></div>
+                <div id="intlPreview" style="margin-top:14px;"></div>
+            </div>
+
+            <!-- Step 3: Parameters -->
+            <div class="panel">
+                <h3><span class="step-num">3</span> 填写计算参数</h3>
+                <div class="panel-row">
+                    <div class="form-group">
+                        <label>总国际运费（元）</label>
+                        <input type="number" id="intlTotalShipping" placeholder="输入总运费" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>总包裹重量（克）</label>
+                        <input type="number" id="intlTotalWeight" placeholder="输入总重量" step="0.01" min="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>费率（元/克）</label>
+                        <input type="number" id="intlRate" value="0.0240" step="0.0001" min="0" readonly>
+                    </div>
+                </div>
+                <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:8px;">
+                    💡 导入模板后会自动汇总"总包裹重量"，也可手动修改。
+                </p>
+            </div>
+
+            <!-- Step 4: Calculate -->
+            <div class="panel">
+                <h3><span class="step-num">4</span> 计算并生成新表</h3>
+                <button class="btn btn-primary btn-lg" id="intlCalcBtn" onclick="calculateIntl()" disabled>
+                    ⚡ 开始计算
+                </button>
+                <div id="intlResultStatus"></div>
+                <div id="intlResultTable" style="margin-top:16px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 肾表 VIEW ==================== -->
+    <div id="kidneyView" class="detail-view">
+        <button class="back-btn" onclick="showHome()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
+            返回首页
+        </button>
+        <h2 style="margin-bottom:20px;">💰 肾表 — CN × 角色矩阵结算</h2>
+        <div class="workflow">
+            <!-- Step 1: Download Template -->
+            <div class="panel">
+                <h3><span class="step-num">1</span> 下载模板</h3>
+                <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px;">
+                    下载矩阵模板。模板结构：第1行=提示行，第2行=<b>调价</b>（每列一个调价值），第3行=<b>列头</b>(cn, 角色A, 角色B…)，第4行起=数据(cn + 各列填角色名)。
+                </p>
+                <button class="btn btn-outline" onclick="downloadKidneyTemplate()">
+                    📥 下载肾表模板 (.xlsx)
+                </button>
+            </div>
+
+            <!-- Step 2: Import -->
+            <div class="panel">
+                <h3><span class="step-num">2</span> 导入填写好的模板</h3>
+                <div class="upload-zone" id="kidneyUploadZone" onclick="document.getElementById('kidneyFileInput').click()">
+                    <div class="icon">📁</div>
+                    <div class="text">点击此处选择文件，或将 .xlsx / .xls 文件拖拽到此处</div>
+                    <div class="file-name" id="kidneyFileName"></div>
+                </div>
+                <input type="file" id="kidneyFileInput" accept=".xlsx,.xls" onchange="handleKidneyFile(event)">
+                <div id="kidneyImportStatus"></div>
+                <div id="kidneyPreview" style="margin-top:14px;"></div>
+            </div>
+
+            <!-- Step 3: Parameters -->
+            <div class="panel">
+                <h3><span class="step-num">3</span> 填写参数</h3>
+                <div class="panel-row">
+                    <div class="form-group">
+                        <label>均价（元）</label>
+                        <input type="number" id="kidneyAvgPrice" placeholder="例：100" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>导出新表名称</label>
+                        <input type="text" id="kidneyExportName" placeholder="例：肾表结算结果">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Calculate -->
+            <div class="panel">
+                <h3><span class="step-num">4</span> 计算并导出新表</h3>
+                <button class="btn btn-primary btn-lg" id="kidneyCalcBtn" onclick="calculateKidney()" disabled>
+                    ⚡ 开始计算
+                </button>
+                <div id="kidneyResultStatus"></div>
+                <div id="kidneyResultTable" style="margin-top:16px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2026 自动生成表系统 · 数据仅在浏览器本地处理，不会上传至服务器
+    </div>
+</div>
+
+<script>
+// ===================== GLOBAL STATE =====================
+let intlData = null;
+let kidneyRaw = null;          // raw parsed kidney data (whole sheet)
+let kidneyMeta = null;         // { adjustments, roleCols, roleHeaders }
+let intlResultData = null;
+let kidneyResultData = null;
+
+// ===================== NAVIGATION =====================
+function showDetail(view) {
+    document.getElementById('homeView').style.display = 'none';
+    document.getElementById('intlView').classList.remove('active');
+    document.getElementById('kidneyView').classList.remove('active');
+    if (view === 'intl') document.getElementById('intlView').classList.add('active');
+    else if (view === 'kidney') document.getElementById('kidneyView').classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showHome() {
+    document.getElementById('intlView').classList.remove('active');
+    document.getElementById('kidneyView').classList.remove('active');
+    document.getElementById('homeView').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===================== DRAG & DROP =====================
+function setupDragDrop(zoneId, fileInputId, handlerFn) {
+    const zone = document.getElementById(zoneId);
+    ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+        zone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); });
+    });
+    ['dragenter','dragover'].forEach(evt => {
+        zone.addEventListener(evt, () => zone.classList.add('drag-over'));
+    });
+    ['dragleave','drop'].forEach(evt => {
+        zone.addEventListener(evt, () => zone.classList.remove('drag-over'));
+    });
+    zone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            document.getElementById(fileInputId).files = files;
+            handlerFn({ target: document.getElementById(fileInputId) });
+        }
+    });
+}
+setupDragDrop('intlUploadZone', 'intlFileInput', handleIntlFile);
+setupDragDrop('kidneyUploadZone', 'kidneyFileInput', handleKidneyFile);
+
+// ===================== EXCEL UTILS =====================
+function readExcelFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+                resolve(json);
+            } catch (err) {
+                reject(new Error('文件解析失败，请确认上传的是有效的 .xlsx 或 .xls 文件'));
+            }
+        };
+        reader.onerror = () => reject(new Error('文件读取失败'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function downloadExcel(data, filename) {
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    if (data.length > 0) ws['!cols'] = data[0].map(() => ({ wch: 18 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, filename);
+}
+
+function renderTable(headers, rows, highlightCols) {
+    if (!rows || rows.length === 0) {
+        return '<div class="empty-state"><div class="icon">📭</div><p>暂无数据</p></div>';
+    }
+    let html = '<div class="table-wrapper"><table><thead><tr>';
+    headers.forEach(h => { html += `<th>${h}</th>`; });
+    html += '</tr></thead><tbody>';
+    rows.forEach(row => {
+        html += '<tr>';
+        row.forEach((cell, ci) => {
+            let cls = '';
+            if (highlightCols && highlightCols.includes(ci)) cls = ' class="col-highlight"';
+            html += `<td${cls}>${cell}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    return html;
+}
+
+// ===================== 国际表 =====================
+function downloadIntlTemplate() {
+    // 匹配实际模板：cn | 本体（克）
+    const templateData = [
+        ['cn', '本体（克）'],
+        ['张三', 100],
+        ['王五', 200],
+        ['李四', 200],
+        ['小红', 300],
+        ['小白', 500],
+        ['小黑', 400],
+        ['小绿', 300],
+    ];
+    downloadExcel(templateData, '国际表模板.xlsx');
+}
+
+async function handleIntlFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const fileNameEl = document.getElementById('intlFileName');
+    const statusEl = document.getElementById('intlImportStatus');
+    const previewEl = document.getElementById('intlPreview');
+    const calcBtn = document.getElementById('intlCalcBtn');
+    const weightInput = document.getElementById('intlTotalWeight');
+
+    fileNameEl.textContent = `✅ 已选择: ${file.name}`;
+    statusEl.innerHTML = '';
+
+    try {
+        const raw = await readExcelFile(file);
+        if (raw.length < 2) throw new Error('模板数据不足，至少需要表头+1行数据');
+
+        // Parse: header row = cn, 本体（克）
+        const headers = raw[0].map(h => String(h).trim());
+        const cnIdx = headers.findIndex(h => h.toLowerCase() === 'cn');
+        const weightIdx = headers.findIndex(h => h.includes('本体') || h.includes('克') || h.toLowerCase().includes('weight'));
+
+        if (cnIdx === -1) throw new Error('未找到"cn"列，请确认模板格式');
+        if (weightIdx === -1) throw new Error('未找到"本体（克）"列，请确认模板格式');
+
+        const dataRows = raw.slice(1).filter(r => {
+            const cn = String(r[cnIdx] || '').trim();
+            const w = parseFloat(r[weightIdx]);
+            return cn !== '' && !isNaN(w) && w > 0;
+        });
+
+        if (dataRows.length === 0) throw new Error('未检测到有效数据行（cn和本体克重均不能为空）');
+
+        intlData = dataRows.map((row, idx) => ({
+            rowNum: idx + 1,
+            cn: String(row[cnIdx] || '').trim(),
+            本体: parseFloat(row[weightIdx]) || 0,
+        }));
+
+        // Auto-fill total weight
+        const totalWeight = intlData.reduce((s, d) => s + d.本体, 0);
+        weightInput.value = totalWeight.toFixed(1);
+
+        statusEl.innerHTML = `<div class="alert alert-success">✅ 成功导入 ${intlData.length} 条数据，总重量 <b>${totalWeight.toFixed(1)}</b> 克（已自动填入）</div>`;
+        previewEl.innerHTML = '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 导入数据预览：</h4>' +
+            renderTable(
+                ['cn', '本体（克）'],
+                intlData.map(d => [d.cn, d.本体.toFixed(1)])
+            );
+        calcBtn.disabled = false;
+    } catch (err) {
+        intlData = null;
+        fileNameEl.textContent = '';
+        statusEl.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+        previewEl.innerHTML = '';
+        calcBtn.disabled = true;
+    }
+}
+
+function calculateIntl() {
+    if (!intlData || intlData.length === 0) {
+        document.getElementById('intlResultStatus').innerHTML =
+            '<div class="alert alert-warning">⚠️ 请先导入填写好的模板</div>';
+        return;
+    }
+
+    const totalShipping = parseFloat(document.getElementById('intlTotalShipping').value);
+    const totalWeight = parseFloat(document.getElementById('intlTotalWeight').value);
+    const rate = parseFloat(document.getElementById('intlRate').value);
+
+    if (isNaN(totalShipping) || totalShipping < 0) {
+        document.getElementById('intlResultStatus').innerHTML =
+            '<div class="alert alert-warning">⚠️ 请填写有效的总国际运费</div>';
+        return;
+    }
+    if (isNaN(totalWeight) || totalWeight <= 0) {
+        document.getElementById('intlResultStatus').innerHTML =
+            '<div class="alert alert-warning">⚠️ 请填写有效的总包裹重量（必须大于0）</div>';
+        return;
+    }
+
+    // 计算：每人的分摊运费 = (本体重量 / 总包裹重量) × 总国际运费
+    // 最终价格 = 分摊运费（因为模板没有原价，价格就是从重量算出来的运费）
+    const results = intlData.map(d => {
+        const weightRatio = totalWeight > 0 ? d.本体 / totalWeight : 0;
+        const shippingFee = weightRatio * totalShipping;
+        return {
+            ...d,
+            重量占比: weightRatio,
+            分摊运费: shippingFee,
+        };
+    });
+
+    const summaryWeight = results.reduce((s, r) => s + r.本体, 0);
+    const summaryShipping = results.reduce((s, r) => s + r.分摊运费, 0);
+
+    intlResultData = results;
+
+    const headers = ['cn', '本体（克）', '重量占比(%)', '分摊运费（元）'];
+    const rows = results.map(r => [
+        r.cn,
+        r.本体.toFixed(1),
+        (r.重量占比 * 100).toFixed(2),
+        r.分摊运费.toFixed(2),
+    ]);
+    rows.push(['📊 合计', summaryWeight.toFixed(1), '100.00', summaryShipping.toFixed(2)]);
+
+    document.getElementById('intlResultStatus').innerHTML =
+        `<div class="alert alert-info">
+            📐 <b>计算逻辑</b>：每人分摊运费 = (本体重量 ÷ 总包裹重量${totalWeight.toFixed(1)}g) × 总国际运费${totalShipping.toFixed(2)}元<br>
+            📌 费率参考：${rate.toFixed(4)} 元/克（只读） &nbsp;|&nbsp;
+            分摊运费合计 = ${summaryShipping.toFixed(2)} 元
+        </div>`;
+
+    document.getElementById('intlResultTable').innerHTML =
+        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果（新表）：</h4>' +
+        renderTable(headers, rows, [3]) +
+        `<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-accent" onclick="exportIntlResult()">📥 导出结果表 (.xlsx)</button>
+        </div>`;
+
+    document.getElementById('intlResultTable').scrollIntoView({ behavior: 'smooth' });
+}
+
+function exportIntlResult() {
+    if (!intlResultData || intlResultData.length === 0) {
+        alert('没有可导出的数据，请先完成计算'); return;
+    }
+    const headers = ['cn', '本体（克）', '重量占比(%)', '分摊运费（元）'];
+    const rows = intlResultData.map(r => [
+        r.cn, r.本体.toFixed(1), (r.重量占比 * 100).toFixed(2), r.分摊运费.toFixed(2)
+    ]);
+    downloadExcel([headers, ...rows], '国际表_计算结果.xlsx');
+}
+
+// ===================== 肾表 =====================
+function downloadKidneyTemplate() {
+    // 匹配实际模板的矩阵结构
+    const templateData = [
+        ['谷子类型(必填)', '均价填这里', '', '', ''],
+        ['调价', 5, 2, -6, -1],
+        ['cn', '角色A', '角色B', '角色C', '角色D'],
+        [1, '', '', '', ''],
+        [2, '', '', '', ''],
+        [3, '', '', '', ''],
+    ];
+    downloadExcel(templateData, '肾表模板.xlsx');
+}
+
+async function handleKidneyFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const fileNameEl = document.getElementById('kidneyFileName');
+    const statusEl = document.getElementById('kidneyImportStatus');
+    const previewEl = document.getElementById('kidneyPreview');
+    const calcBtn = document.getElementById('kidneyCalcBtn');
+
+    fileNameEl.textContent = `✅ 已选择: ${file.name}`;
+    statusEl.innerHTML = '';
+
+    try {
+        const raw = await readExcelFile(file);
+        if (raw.length < 4) throw new Error('模板数据不足，至少需要提示行+调价行+表头行+1行数据');
+
+        // --- Parse kidney matrix ---
+        // Row 0: info row (skip)
+        // Row 1: 调价 values — first col is "调价", rest are numbers
+        const adjRow = raw[1];
+        if (!adjRow || String(adjRow[0] || '').trim() !== '调价') {
+            throw new Error('第2行应为调价行（第一列=调价），请确认模板格式');
+        }
+        const adjustments = [];
+        for (let i = 1; i < adjRow.length; i++) {
+            const v = parseFloat(adjRow[i]);
+            if (!isNaN(v)) adjustments.push(v);
+            else if (String(adjRow[i] || '').trim() !== '') adjustments.push(0);
+        }
+        if (adjustments.length === 0) throw new Error('调价行无有效数值');
+
+        // Row 2: headers — first col is "cn", rest are role column names
+        const headerRow = raw[2];
+        if (!headerRow || String(headerRow[0] || '').trim().toLowerCase() !== 'cn') {
+            throw new Error('第3行第一列应为"cn"，请确认模板格式');
+        }
+        const roleHeaders = [];
+        for (let i = 1; i < headerRow.length; i++) {
+            const h = String(headerRow[i] || '').trim();
+            if (h !== '') roleHeaders.push(h);
+            else if (i - 1 < adjustments.length) roleHeaders.push(`角色${i}`);
+        }
+
+        // Map: column index -> { header, adjustment }
+        const roleCols = [];
+        const numRoles = Math.min(adjustments.length, roleHeaders.length);
+        for (let i = 0; i < numRoles; i++) {
+            roleCols.push({
+                colIndex: i + 1,  // 0-based column in raw data
+                header: roleHeaders[i],
+                adjustment: adjustments[i],
+            });
+        }
+
+        // Rows 3+: data — first col = CN, rest = role values
+        const dataRows = raw.slice(3).filter(r => {
+            const cn = String(r[0] || '').trim();
+            return cn !== '';
+        });
+
+        if (dataRows.length === 0) throw new Error('未检测到有效数据行（CN不能为空）');
+
+        // Parse each data row: for each role column with non-empty value, record a "slot"
+        const slots = [];
+        dataRows.forEach(row => {
+            const cn = String(row[0] || '').trim();
+            roleCols.forEach(rc => {
+                const roleVal = String(row[rc.colIndex] || '').trim();
+                if (roleVal !== '') {
+                    slots.push({
+                        cn,
+                        role: roleVal,
+                        adjustment: rc.adjustment,
+                        roleHeader: rc.header,
+                    });
+                }
+            });
+        });
+
+        if (slots.length === 0) throw new Error('所有角色列均为空，请至少填写一个角色值');
+
+        kidneyRaw = { raw, adjustments, roleCols, dataRows, slots };
+        kidneyMeta = { adjustments, roleCols, roleHeaders };
+
+        statusEl.innerHTML = `<div class="alert alert-success">
+            ✅ 成功导入：${dataRows.length} 个CN，${roleCols.length} 个角色列，共 ${slots.length} 个角色槽位
+        </div>`;
+
+        // Preview: show the imported matrix
+        const previewHeaders = ['CN'];
+        roleCols.forEach(rc => previewHeaders.push(`${rc.header}<span class="tpl-label">调价${rc.adjustment>=0?'+':''}${rc.adjustment}</span>`));
+        const previewRows = dataRows.map(row => {
+            const r = [String(row[0] || '').trim()];
+            roleCols.forEach(rc => {
+                r.push(String(row[rc.colIndex] || '').trim() || '-');
+            });
+            return r;
+        });
+
+        previewEl.innerHTML = '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 导入数据预览：</h4>' +
+            '<div class="table-wrapper"><table><thead><tr>' +
+            previewHeaders.map(h => `<th>${h}</th>`).join('') +
+            '</tr></thead><tbody>' +
+            previewRows.map(row =>
+                '<tr>' + row.map(c => `<td>${c}</td>`).join('') + '</tr>'
+            ).join('') +
+            '</tbody></table></div>';
+
+        calcBtn.disabled = false;
+    } catch (err) {
+        kidneyRaw = null; kidneyMeta = null;
+        fileNameEl.textContent = '';
+        statusEl.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+        previewEl.innerHTML = '';
+        calcBtn.disabled = true;
+    }
+}
+
+function calculateKidney() {
+    if (!kidneyRaw || !kidneyMeta) {
+        document.getElementById('kidneyResultStatus').innerHTML =
+            '<div class="alert alert-warning">⚠️ 请先导入填写好的模板</div>';
+        return;
+    }
+
+    const avgPrice = parseFloat(document.getElementById('kidneyAvgPrice').value);
+    if (isNaN(avgPrice)) {
+        document.getElementById('kidneyResultStatus').innerHTML =
+            '<div class="alert alert-warning">⚠️ 请填写有效的均价</div>';
+        return;
+    }
+
+    const exportName = document.getElementById('kidneyExportName').value.trim() || '肾表结算结果';
+    const { slots, roleCols } = kidneyRaw;
+
+    // Step 1: Calculate price for each slot = 均价 + 该列的调价
+    const pricedSlots = slots.map(s => ({
+        ...s,
+        price: avgPrice + s.adjustment,
+    }));
+
+    // Step 2: Group by CN
+    const cnMap = new Map();
+    pricedSlots.forEach(s => {
+        if (!cnMap.has(s.cn)) {
+            cnMap.set(s.cn, { roles: new Map(), totalPrice: 0 });
+        }
+        const entry = cnMap.get(s.cn);
+        entry.roles.set(s.role, (entry.roles.get(s.role) || 0) + 1);
+        entry.totalPrice += s.price;
+    });
+
+    // Step 3: Build result — CN | 角色 | 总肾
+    const results = [];
+    const sortedCNs = [...cnMap.keys()].sort((a, b) => {
+        const na = parseInt(a), nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+    });
+
+    sortedCNs.forEach(cn => {
+        const entry = cnMap.get(cn);
+        const roleParts = [...entry.roles.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([role, count]) => `${role}${count}`);
+        results.push({ CN: cn, 角色: roleParts.join(','), 总肾: entry.totalPrice });
+    });
+
+    kidneyResultData = { results, exportName, avgPrice, pricedSlots, roleCols };
+
+    // Display
+    const headers = ['CN', '角色', '总肾（元）'];
+    const rows = results.map(r => [r.CN, r.角色, r.总肾.toFixed(2)]);
+    const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
+    rows.push(['📊 合计', '', grandTotal.toFixed(2)]);
+
+    document.getElementById('kidneyResultStatus').innerHTML =
+        `<div class="alert alert-info">
+            📐 <b>计算逻辑</b>：每个格子价格 = 均价(${avgPrice.toFixed(2)}) + 该列调价<br>
+            📌 <b>角色格式</b>：角色名+次数（A2,C1 = 角色A出现2次、C出现1次）<br>
+            📌 <b>总肾</b> = 该CN下所有角色格子价格之和 &nbsp;|&nbsp; 总计 = ${grandTotal.toFixed(2)} 元
+        </div>`;
+
+    document.getElementById('kidneyResultTable').innerHTML =
+        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 汇总结果：</h4>' +
+        renderTable(headers, rows, [2]) +
+        `<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-accent" onclick="exportKidneyResult()">📥 导出结果表 (.xlsx)</button>
+            <button class="btn btn-outline" onclick="exportKidneyDetail()">📋 导出明细表 (.xlsx)</button>
+        </div>`;
+
+    document.getElementById('kidneyResultTable').scrollIntoView({ behavior: 'smooth' });
+}
+
+function exportKidneyResult() {
+    if (!kidneyResultData || !kidneyResultData.results) {
+        alert('没有可导出的数据，请先完成计算'); return;
+    }
+    const headers = ['CN', '角色', '总肾（元）'];
+    const rows = kidneyResultData.results.map(r => [r.CN, r.角色, r.总肾.toFixed(2)]);
+    const grandTotal = kidneyResultData.results.reduce((s, r) => s + r.总肾, 0);
+    rows.push(['合计', '', grandTotal.toFixed(2)]);
+    downloadExcel([headers, ...rows], `${kidneyResultData.exportName}.xlsx`);
+}
+
+function exportKidneyDetail() {
+    if (!kidneyResultData || !kidneyResultData.pricedSlots) {
+        alert('没有可导出的数据，请先完成计算'); return;
+    }
+    const headers = ['CN', '角色', '所属列', '列调价', `价格(均价${kidneyResultData.avgPrice}+调价)`];
+    const rows = kidneyResultData.pricedSlots.map(s => [
+        s.cn, s.role, s.roleHeader,
+        (s.adjustment >= 0 ? '+' : '') + s.adjustment,
+        s.price.toFixed(2)
+    ]);
+    downloadExcel([headers, ...rows], `${kidneyResultData.exportName}_明细.xlsx`);
+}
+
+// ===================== INIT =====================
+console.log('✅ 自动生成表系统已就绪');
+console.log('📊 国际表: cn + 本体（克）→ 按重量分摊运费');
+console.log('💰 肾表: 矩阵(调价行+CN×角色列) → CN汇总角色+总肾');
+console.log('📋 二调退补表: 开发中');
+</script>
+
+</body>
+</html>
