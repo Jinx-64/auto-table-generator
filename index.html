@@ -150,15 +150,12 @@
 
 <header class="header">
     <h1>📊 自动生成表系统</h1>
-    <p class="subtitle">国际运费计算 · 肾表结算 · 二调退补</p>
 </header>
 
 <div class="container">
 
     <!-- ==================== HOME ==================== -->
     <div id="homeView" class="home-view">
-        <h2 class="section-title">选择功能模块</h2>
-        <p class="section-desc">请点击下方卡片进入对应的表格处理功能</p>
         <div class="card-grid">
             <div class="card" onclick="showDetail('intl')">
                 <div class="card-icon intl">🌍</div>
@@ -185,17 +182,14 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
             返回首页
         </button>
-        <h2 style="margin-bottom:20px;">🌍 国际表 — 按数量分摊国际运费</h2>
+        <h2 style="margin-bottom:20px;">🌍 国际表</h2>
         <div class="workflow">
             <div class="panel">
                 <h3><span class="step-num">1</span> 下载模板</h3>
-                <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px;">
-                    下载标准模板，包含 <code>cn</code>、<code>角色及数量</code>（如"泉5,星2"）、<code>国际</code> 三列。
-                </p>
-                <button class="btn btn-outline" onclick="downloadIntlTemplate()">📥 下载国际表模板 (.xlsx)</button>
+                <button class="btn btn-outline" onclick="downloadIntlTemplate()">📥 下载模板 (.xlsx)</button>
             </div>
             <div class="panel">
-                <h3><span class="step-num">2</span> 导入填写好的模板</h3>
+                <h3><span class="step-num">2</span> 导入模板</h3>
                 <div class="upload-zone" id="intlUploadZone" onclick="document.getElementById('intlFileInput').click()">
                     <div class="icon">📁</div>
                     <div class="text">点击此处选择文件，或将 .xlsx / .xls 文件拖拽到此处</div>
@@ -206,15 +200,14 @@
                 <div id="intlPreview" style="margin-top:14px;"></div>
             </div>
             <div class="panel">
-                <h3><span class="step-num">3</span> 填写计算参数</h3>
+                <h3><span class="step-num">3</span> 填写参数</h3>
                 <div class="panel-row">
                     <div class="form-group"><label>总国际运费（元）</label><input type="number" id="intlTotalShipping" placeholder="输入总运费" step="0.01" min="0"></div>
                     <div class="form-group"><label>总数量</label><input type="number" id="intlTotalQty" placeholder="自动汇总" step="1" min="1" readonly></div>
                 </div>
-                <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:8px;">💡 导入后自动从"角色及数量"列解析并汇总总数量（如"泉5,星2"=7）。</p>
             </div>
             <div class="panel">
-                <h3><span class="step-num">4</span> 计算并生成新表</h3>
+                <h3><span class="step-num">4</span> 计算</h3>
                 <button class="btn btn-primary btn-lg" id="intlCalcBtn" onclick="calculateIntl()" disabled>⚡ 开始计算</button>
                 <div id="intlResultStatus"></div>
                 <div id="intlResultTable" style="margin-top:16px;"></div>
@@ -228,20 +221,15 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
             返回首页
         </button>
-        <h2 style="margin-bottom:20px;">💰 肾表 — 排表结算（CN × 角色汇总）</h2>
+        <h2 style="margin-bottom:20px;">💰 肾表</h2>
         <div class="workflow">
-            <!-- Step 1: Download Template -->
             <div class="panel">
                 <h3><span class="step-num">1</span> 下载模板</h3>
-                <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px;">
-                    下载排表模板。结构：第1行=谷子类型/均价，第2行=<b>调价 | 角色 | CN列(1/2/3…)</b>，第3行起=每行一种角色的调价+角色名+各CN位置下的CN名称。
-                </p>
-                <button class="btn btn-outline" onclick="downloadKidneyTemplate()">📥 下载排表模板 (.xlsx)</button>
+                <button class="btn btn-outline" onclick="downloadKidneyTemplate()">📥 下载模板 (.xlsx)</button>
             </div>
 
-            <!-- Step 2: Import -->
             <div class="panel">
-                <h3><span class="step-num">2</span> 导入填写好的排表</h3>
+                <h3><span class="step-num">2</span> 导入排表</h3>
                 <div class="upload-zone" id="kidneyUploadZone" onclick="document.getElementById('kidneyFileInput').click()">
                     <div class="icon">📁</div>
                     <div class="text">点击此处选择文件，或将 .xlsx / .xls 文件拖拽到此处</div>
@@ -256,20 +244,12 @@
             <div class="panel">
                 <h3><span class="step-num">3</span> 填写参数</h3>
                 <div class="panel-row">
-                    <div class="form-group">
-                        <label>均价（元）<span style="color:var(--text-secondary);font-weight:400;">— 从模板自动读取，可修改</span></label>
-                        <input type="number" id="kidneyAvgPrice" placeholder="从模板读取" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>导出新表名称</label>
-                        <input type="text" id="kidneyExportName" placeholder="例：肾表结算结果">
-                    </div>
+                    <div class="form-group"><label>均价（元）</label><input type="number" id="kidneyAvgPrice" placeholder="从模板读取" step="0.01"></div>
+                    <div class="form-group"><label>导出名称</label><input type="text" id="kidneyExportName" placeholder="例：肾表结算结果"></div>
                 </div>
             </div>
-
-            <!-- Step 4: Calculate -->
             <div class="panel">
-                <h3><span class="step-num">4</span> 计算并导出新表</h3>
+                <h3><span class="step-num">4</span> 计算</h3>
                 <button class="btn btn-primary btn-lg" id="kidneyCalcBtn" onclick="calculateKidney()" disabled>⚡ 开始计算</button>
                 <div id="kidneyResultStatus"></div>
                 <div id="kidneyResultTable" style="margin-top:16px;"></div>
