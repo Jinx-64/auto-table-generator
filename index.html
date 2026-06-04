@@ -293,11 +293,42 @@ function showDetail(view) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function resetAll() {
+    // Reset state
+    intlData = null;
+    intlResultData = null;
+    kidneyTableData = null;
+    kidneyResultData = null;
+
+    // Reset international table
+    document.getElementById('intlFileName').textContent = '';
+    document.getElementById('intlImportStatus').innerHTML = '';
+    document.getElementById('intlPreview').innerHTML = '';
+    document.getElementById('intlResultStatus').innerHTML = '';
+    document.getElementById('intlResultTable').innerHTML = '';
+    document.getElementById('intlCalcBtn').disabled = true;
+    document.getElementById('intlTotalShipping').value = '';
+    document.getElementById('intlTotalQty').value = '';
+    document.getElementById('intlFileInput').value = '';
+
+    // Reset kidney table
+    document.getElementById('kidneyFileName').textContent = '';
+    document.getElementById('kidneyImportStatus').innerHTML = '';
+    document.getElementById('kidneyPreview').innerHTML = '';
+    document.getElementById('kidneyResultStatus').innerHTML = '';
+    document.getElementById('kidneyResultTable').innerHTML = '';
+    document.getElementById('kidneyCalcBtn').disabled = true;
+    document.getElementById('kidneyAvgInputs').innerHTML = '';
+    document.getElementById('kidneyExportName').value = '';
+    document.getElementById('kidneyFileInput').value = '';
+}
+
 function showHome() {
     document.getElementById('intlView').classList.remove('active');
     document.getElementById('kidneyView').classList.remove('active');
     document.getElementById('homeView').classList.add('active');
     document.querySelector('.header').style.display = '';
+    resetAll();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
