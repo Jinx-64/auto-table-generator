@@ -899,7 +899,24 @@ function readAllSheets(file) {
                 const result = {};
                 workbook.SheetNames.forEach(name => {
                     const ws = workbook.Sheets[name];
-                    result[name] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                    // Read raw rows (no defval — we normalize ourselves)
+                    let raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                    // Normalize: pad to uniform width, null → ''
+                    if (raw && raw.length > 0) {
+                        const mc = raw.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+                        if (mc > 0) {
+                            raw = raw.map(r => {
+                                if (!Array.isArray(r)) return new Array(mc).fill('');
+                                const row = new Array(mc);
+                                for (let i = 0; i < mc; i++) {
+                                    const v = i < r.length ? r[i] : '';
+                                    row[i] = (v === null || v === undefined) ? '' : v;
+                                }
+                                return row;
+                            });
+                        }
+                    }
+                    result[name] = raw;
                 });
                 resolve(result);
             } catch (err) {
@@ -1079,24 +1096,63 @@ function exportIntlResult() {
 }
 
 // ===================== 肾表（多谷子类型支持） =====================
+function findRoleColumn(row) {
+    // Find the column index of '角色' in a row — this is the anchor for block layout
+    for (let i = 0; i < row.length; i++) {
+        if (String(row[i] || '').trim() === '角色') return i;
+    }
+    return -1;
+}
+
+function normalizeSheet(raw) {
+    // Pad all rows to uniform column count; convert null/undefined → ''
+    if (!raw || raw.length === 0) return raw;
+    const maxCols = raw.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+    if (maxCols === 0) return raw;
+    return raw.map(r => {
+        if (!Array.isArray(r)) return [];
+        const padded = new Array(maxCols);
+        for (let i = 0; i < maxCols; i++) {
+            const v = i < r.length ? r[i] : '';
+            padded[i] = (v === null || v === undefined) ? '' : v;
+        }
+        return padded;
+    });
+}
+
 function parseKidneyBlock(raw, startIdx) {
-    // Parse one 谷子类型 block starting at startIdx
-    // Returns { typeName, avgPrice, roles, cnColumns, endIdx }
+    // Parse one 谷子类型 block starting at startIdx.
+    // Layout is column-flexible:
+    //   Row 0:  [..., 谷子类型, avgPrice, ...]
+    //   Row 1:  [..., 调价(opt), 角色, CN1, CN2, ...]
+    //   Data:   [..., adjustment, roleName, cnVal1, cnVal2, ...]
+    //
+    // We locate '角色' in row1 as the anchor, then derive all other columns.
+    // Returns { typeName, avgPrice, roles, cnColumns, endIdx, hasAdjustment }
     if (startIdx >= raw.length || startIdx + 2 >= raw.length) return null;
 
     const row0 = raw[startIdx];
-    const typeName = String(row0[0] || '').trim();
-    const avgPrice = parseFloat(row0[1]);
-    if (!typeName) return null;
-    if (isNaN(avgPrice)) avgPrice = 0;  // default 0 if not filled
-
     const row1 = raw[startIdx + 1];
-    if (String(row1[0] || '').trim() !== '调价') return null;
-    if (String(row1[1] || '').trim() !== '角色') return null;
 
-    // Parse CN columns
+    // Locate anchor: '角色' column in the header row
+    const roleCol = findRoleColumn(row1);
+    if (roleCol < 1) return null;  // need at least 1 column to the left for 调价/谷子类型
+    const adjCol = roleCol - 1;    // column for 调价 / 谷子类型 name
+
+    // Read 谷子类型 name from cell above 调价 (row0, same column)
+    const typeName = String(row0[adjCol] || '').trim();
+    if (!typeName) return null;
+
+    // Read 均价 from the cell next to typeName (row0, adjCol+1)
+    const avgPrice = parseFloat(row0[adjCol + 1]);
+    const avgPriceVal = isNaN(avgPrice) ? 0 : avgPrice;
+
+    // 调价 header is optional — when absent, all adjustments default to 0
+    const hasAdjustmentHeader = String(row1[adjCol] || '').trim() === '调价';
+
+    // Parse CN columns: start after '角色' column
     const cnColumns = [];
-    for (let i = 2; i < row1.length; i++) {
+    for (let i = roleCol + 1; i < row1.length; i++) {
         const label = String(row1[i] || '').trim();
         if (label !== '') cnColumns.push({ index: i, label: label });
     }
@@ -1107,43 +1163,45 @@ function parseKidneyBlock(raw, startIdx) {
     let idx = startIdx + 2;
     while (idx < raw.length) {
         const row = raw[idx];
-        const col0 = String(row[0] || '').trim();
-        const col1 = String(row[1] || '').trim();
+        const adjCell = String(row[adjCol] || '').trim();
+        const roleCell = String(row[roleCol] || '').trim();
 
-        // Stop if blank row
-        if (col0 === '' && col1 === '') { idx++; break; }
-        // Stop if next block header
-        if (col0 && !col0.match(/^-?\d/) && col0 !== '调价') { break; }
-        // Stop if "调价" row (new block)
-        if (col0 === '调价') { break; }
+        // Stop if blank row (both adj and role cells empty)
+        if (adjCell === '' && roleCell === '') { idx++; break; }
+        // Stop if this row looks like a new block header (has '角色' in roleCol with non-numeric adjCol)
+        // Check if this looks like another header row
+        if (roleCell === '角色') { break; }
+        // Stop if adjCol has non-numeric text that's not a valid adjustment (potential next block)
+        if (adjCell && !adjCell.match(/^-?\d/) && adjCell !== '调价') {
+            // Could be a new 谷子类型 name → check if it's followed by avg and has 角色 below
+            break;
+        }
 
-        if (col0 !== '' && col1 !== '') {
-            const adjustment = parseFloat(col0);
-            if (!isNaN(adjustment)) {
-                const cnCells = [];
-                cnColumns.forEach(c => {
-                    const v = String(row[c.index] || '').trim();
-                    if (v !== '') cnCells.push({ cnName: v, colLabel: c.label });
-                });
-                roles.push({ adjustment, name: col1, cnCells });
-            }
+        // Role name is required; adjustment defaults to 0 when empty or no header
+        if (roleCell !== '') {
+            const adjustment = hasAdjustmentHeader ? (parseFloat(adjCell) || 0) : 0;
+            const cnCells = [];
+            cnColumns.forEach(c => {
+                const v = String(row[c.index] || '').trim();
+                if (v !== '') cnCells.push({ cnName: v, colLabel: c.label });
+            });
+            roles.push({ adjustment, name: roleCell, cnCells });
         }
         idx++;
     }
 
-    return { typeName, avgPrice, roles, cnColumns, endIdx: idx };
+    return { typeName, avgPrice: avgPriceVal, roles, cnColumns, endIdx: idx, hasAdjustment: hasAdjustmentHeader };
 }
 
 function downloadKidneyTemplate() {
     const templateData = [
-        ['谷子类型A', 0, '', '', '', '', ''],
+        ['谷子类型A（有调价）', 0, '', '', '', '', ''],
         ['调价', '角色', 1, 2, 3, 4, 5],
-        ['', '', '', '', '', '', ''],
         ['', '', '', '', '', '', ''],
         ['', '', '', '', '', '', ''],
         ['', '', '', '', '', '', '', ''],
-        ['谷子类型B', 0, '', '', '', '', ''],
-        ['调价', '角色', 1, 2, 3, 4, 5],
+        ['谷子类型B（无调价）', 0, '', '', '', '', ''],
+        ['', '角色', 1, 2, 3, 4, 5],
         ['', '', '', '', '', '', ''],
         ['', '', '', '', '', '', ''],
         ['', '', '', '', '', '', ''],
@@ -1166,13 +1224,13 @@ async function handleKidneyFile(event) {
 
     try {
         const sheets = await readAllSheets(file);
-        const raw = sheets['排表'];
+        let raw = normalizeSheet(sheets['排表']);
         if (!raw || raw.length < 3) throw new Error('未找到"排表"sheet或数据不足');
 
         // --- Parse 定金 sheet ---
         const depositMap = new Map();
         if (sheets['定金']) {
-            const depositRows = sheets['定金'];
+            const depositRows = normalizeSheet(sheets['定金']);
             depositRows.slice(1).forEach(row => {
                 const cn = String(row[0] || '').trim();
                 const amt = parseFloat(row[1]);
@@ -1183,7 +1241,7 @@ async function handleKidneyFile(event) {
         // --- Parse 存肾 sheet ---
         const savingMap = new Map();
         if (sheets['存肾']) {
-            const savingRows = sheets['存肾'];
+            const savingRows = normalizeSheet(sheets['存肾']);
             savingRows.slice(1).forEach(row => {
                 const cn = String(row[0] || '').trim();
                 const amt = parseFloat(row[1]);
@@ -1208,18 +1266,37 @@ async function handleKidneyFile(event) {
             }
         }
 
-        if (blocks.length === 0) throw new Error('未检测到有效的谷子类型块');
+        if (blocks.length === 0) {
+            // Diagnostic: show what was in the sheet
+            const sample = raw.slice(0, 4).map((r, i) => `Row${i}: ${JSON.stringify(r.slice(0, 10))}`).join(' | ');
+            throw new Error(`未检测到有效的谷子类型块。排表前4行: ${sample}`);
+        }
 
         // Validate each block
         let totalSlotsAll = 0;
         blocks.forEach((b, i) => {
-            if (b.roles.length === 0) throw new Error(`"${b.typeName}" 没有有效角色数据`);
+            if (b.roles.length === 0) {
+                // Diagnostic: show what rows were seen
+                const ctxStart = Math.max(0, i === 0 ? 0 : blocks[i-1].endIdx);
+                const sample = raw.slice(ctxStart, ctxStart + 5).map((r, j) => `Row${ctxStart+j}: ${JSON.stringify(r.slice(0, 8))}`).join(' | ');
+                throw new Error(`"${b.typeName}" 没有有效角色数据。周围行: ${sample}`);
+            }
             const slots = b.roles.reduce((s, r) => s + r.cnCells.length, 0);
             if (slots === 0) throw new Error(`"${b.typeName}" 所有CN列为空`);
             totalSlotsAll += slots;
-            // Validate 调价 sum
+            // Calculate 调价 sum
             b.adjSum = b.roles.reduce((s, r) => s + r.adjustment, 0);
-            b.adjSumOk = Math.abs(b.adjSum) < 0.001;
+            // If header had '调价' but all values are 0, treat as no-adjustment for simplified calc
+            if (b.hasAdjustment && Math.abs(b.adjSum) < 0.001 && b.roles.every(r => r.adjustment === 0)) {
+                b.hasAdjustment = false;
+            }
+            // Validate 调价 sum (only when adjustments exist)
+            b.adjSumOk = !b.hasAdjustment || Math.abs(b.adjSum) < 0.001;
+            // Count total CN cells per CN for simplified calculation
+            b.cnCellCounts = {}; // cnName → count
+            b.roles.forEach(r => r.cnCells.forEach(c => {
+                b.cnCellCounts[c.cnName] = (b.cnCellCounts[c.cnName] || 0) + 1;
+            }));
         });
 
         kidneyTableData = { blocks, depositMap, savingMap };
@@ -1237,10 +1314,10 @@ async function handleKidneyFile(event) {
         // --- Preview ---
         let previewHTML = '';
         blocks.forEach((b, bi) => {
-            const ph = ['调价', '角色'];
+            const ph = b.hasAdjustment ? ['调价', '角色'] : ['角色'];
             b.cnColumns.forEach(c => ph.push(`CN${c.label}`));
             const pr = b.roles.map(r => {
-                const row = [r.adjustment, r.name];
+                const row = b.hasAdjustment ? [r.adjustment, r.name] : [r.name];
                 b.cnColumns.forEach(c => {
                     const f = r.cnCells.find(cell => cell.colLabel === c.label);
                     row.push(f ? f.cnName : '');
@@ -1248,9 +1325,11 @@ async function handleKidneyFile(event) {
                 return row;
             });
 
-            const adjStatus = b.adjSumOk
-                ? '<span style="color:#059669;">✅ 0</span>'
-                : `<span style="color:#ef4444;">⚠️ ${fmt(b.adjSum)}</span>`;
+            const adjStatus = !b.hasAdjustment
+                ? '<span style="color:#0891b2;">— 无调价</span>'
+                : b.adjSumOk
+                    ? '<span style="color:#059669;">✅ 0</span>'
+                    : `<span style="color:#ef4444;">⚠️ ${fmt(b.adjSum)}</span>`;
 
             previewHTML += `<h4 style="margin:8px 0 4px;font-size:0.9rem;">📦 ${b.typeName}（均价=${b.avgPrice}，调价总和=${adjStatus}）</h4>`;
             previewHTML += '<div class="table-wrapper"><table><thead><tr>';
@@ -1259,8 +1338,8 @@ async function handleKidneyFile(event) {
             pr.forEach(row => {
                 previewHTML += '<tr>' + row.map((c, i) => {
                     let cls = '';
-                    if (i === 0) cls = 'col-highlight';
-                    if (i === 1) cls = 'col-cn';
+                    if (i === 0 && b.hasAdjustment) cls = 'col-highlight';
+                    if ((i === 0 && !b.hasAdjustment) || i === 1) cls = 'col-cn';
                     return `<td class="${cls}">${c}</td>`;
                 }).join('') + '</tr>';
             });
@@ -1280,6 +1359,7 @@ async function handleKidneyFile(event) {
         statusEl.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
         previewEl.innerHTML = '';
         calcBtn.disabled = true;
+        console.error('handleKidneyFile error:', err);
     }
 }
 
@@ -1307,7 +1387,7 @@ function calculateKidney() {
         avgPrices.push(v);
     }
 
-    // --- Validate 调价 sums ---
+    // --- Validate 调价 sums (only when adjustments exist) ---
     for (let i = 0; i < blocks.length; i++) {
         if (!blocks[i].adjSumOk) {
             document.getElementById('kidneyResultStatus').innerHTML =
@@ -1318,22 +1398,44 @@ function calculateKidney() {
 
     // --- Calculate per-block, merge by CN ---
     // cnMap: cn → { types: { typeName: { totalPrice, roleCounts } }, grandTotal }
+    // When a block has no adjustments, use simplified formula: 均价 × 数量
     const cnMap = new Map();
 
     blocks.forEach((b, bi) => {
-        b.roles.forEach(role => {
-            role.cnCells.forEach(cell => {
-                const cn = cell.cnName;
+        const avgP = avgPrices[bi];
+        if (!b.hasAdjustment) {
+            // Simplified: 均价 × 数量 per CN
+            Object.entries(b.cnCellCounts).forEach(([cn, count]) => {
                 if (!cnMap.has(cn)) cnMap.set(cn, {});
                 const cnEntry = cnMap.get(cn);
                 if (!cnEntry[b.typeName]) {
                     cnEntry[b.typeName] = { totalPrice: 0, roles: new Map() };
                 }
-                const price = avgPrices[bi] + role.adjustment;
-                cnEntry[b.typeName].totalPrice += price;
-                cnEntry[b.typeName].roles.set(role.name, (cnEntry[b.typeName].roles.get(role.name) || 0) + 1);
+                cnEntry[b.typeName].totalPrice += avgP * count;
+                // Merge role counts from the block's roles for this CN
+                b.roles.forEach(role => {
+                    const hasCN = role.cnCells.some(c => c.cnName === cn);
+                    if (hasCN) {
+                        cnEntry[b.typeName].roles.set(role.name, (cnEntry[b.typeName].roles.get(role.name) || 0) + 1);
+                    }
+                });
             });
-        });
+        } else {
+            // Per-cell: 均价 + 调价
+            b.roles.forEach(role => {
+                role.cnCells.forEach(cell => {
+                    const cn = cell.cnName;
+                    if (!cnMap.has(cn)) cnMap.set(cn, {});
+                    const cnEntry = cnMap.get(cn);
+                    if (!cnEntry[b.typeName]) {
+                        cnEntry[b.typeName] = { totalPrice: 0, roles: new Map() };
+                    }
+                    const price = avgP + role.adjustment;
+                    cnEntry[b.typeName].totalPrice += price;
+                    cnEntry[b.typeName].roles.set(role.name, (cnEntry[b.typeName].roles.get(role.name) || 0) + 1);
+                });
+            });
+        }
     });
 
     // --- Build results ---
@@ -1422,10 +1524,13 @@ function calculateKidney() {
     const lastCol = 1 + blocks.length * 2 + (hasDeposit ? 1 : 0) + (hasSaving ? 1 : 0);
     const highlightCols = [lastCol]; // highlight 总肾 column
 
+    const hasAnyAdjustment = blocks.some(b => b.hasAdjustment);
     document.getElementById('kidneyResultStatus').innerHTML =
         `<div class="alert alert-info">
-            📐 <b>计算逻辑</b>：各谷子类型独立计算（价格 = 均价 + 调价），按CN合并<br>
-            📌 <b>总肾</b> = 各类型肾之和 &nbsp;|&nbsp; 各类型调价总和均验证为0
+            📐 <b>计算逻辑</b>：${hasAnyAdjustment
+                ? '有调价类型 → 价格 = 均价 + 调价；无调价类型 → 均价 × 数量'
+                : '无调价 → 均价 × 数量 = 总肾'}<br>
+            📌 <b>总肾</b> = 各类型肾之和${hasAnyAdjustment ? ' &nbsp;|&nbsp; 调价总和均验证为0' : ''}
         </div>`;
 
     document.getElementById('kidneyResultTable').innerHTML =
