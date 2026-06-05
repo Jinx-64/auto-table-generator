@@ -1539,6 +1539,7 @@ function calculateKidney() {
         `<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-accent" onclick="exportKidneyResult()">📥 导出结果表 (.xlsx)</button>
             <button class="btn btn-outline" onclick="exportKidneyDetail()">📋 导出明细表 (.xlsx)</button>
+            <button class="btn btn-primary" onclick="bridgeKidneyToIntl()" style="background:#4dabf7;">🔄 计算对应国际运费</button>
         </div>`;
 
     document.getElementById('kidneyResultTable').scrollIntoView({ behavior: 'smooth' });
@@ -1583,6 +1584,92 @@ function exportKidneyDetail() {
     const headers = ['谷子类型', 'CN', '角色', '调价', '价格(均价+调价)'];
     const rows = kidneyResultData.detailRows.map(r => [r.type, r.cn, r.role, (r.adjustment >= 0 ? '+' : '') + r.adjustment, fmt(r.price)]);
     downloadExcel([headers, ...rows], `${kidneyResultData.exportName}_明细.xlsx`);
+}
+
+function bridgeKidneyToIntl() {
+    // Convert kidney results to international table data and jump to intl view
+    if (!kidneyResultData || !kidneyResultData.results) { alert('请先计算肾表'); return; }
+
+    const { results, blocks } = kidneyResultData;
+    if (results.length === 0) { alert('肾表结果为空'); return; }
+
+    // Merge role counts across all 谷子类型 per CN
+    // Kidney roles format: "尼1,纺1" → parse to {尼:1, 纺:1}, sum across types
+    const cnRoleMap = new Map(); // cn → { role → count }
+    results.forEach(r => {
+        const cn = r.CN;
+        if (!cnRoleMap.has(cn)) cnRoleMap.set(cn, new Map());
+        const roleMap = cnRoleMap.get(cn);
+        blocks.forEach(b => {
+            const roleStr = r[b.typeName + '_roles'] || '';
+            if (!roleStr) return;
+            const parts = roleStr.split(',');
+            parts.forEach(p => {
+                const m = p.trim().match(/^(.+?)(\d+)$/);
+                if (m) {
+                    const role = m[1].trim();
+                    const qty = parseInt(m[2]) || 0;
+                    roleMap.set(role, (roleMap.get(role) || 0) + qty);
+                }
+            });
+        });
+    });
+
+    // Build intlData in the format expected by the international table
+    intlData = [];
+    const sortedCNs = [...cnRoleMap.keys()].sort((a, b) => {
+        const na = parseInt(a), nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        if (!isNaN(na)) return -1; if (!isNaN(nb)) return 1;
+        return a.localeCompare(b);
+    });
+
+    let grandTotalQty = 0;
+    sortedCNs.forEach((cn, i) => {
+        const roleMap = cnRoleMap.get(cn);
+        const roles = [...roleMap.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([role, qty]) => ({ role, qty }));
+        const totalQty = roles.reduce((s, r) => s + r.qty, 0);
+        grandTotalQty += totalQty;
+        const roleStr = roles.map(r => r.role + r.qty).join(',');
+        intlData.push({
+            rowNum: i + 1,
+            cn: cn,
+            roleStr: roleStr,
+            roles: roles,
+            totalQty: totalQty,
+        });
+    });
+
+    // Clear previous intl results
+    intlResultData = null;
+    document.getElementById('intlResultStatus').innerHTML = '';
+    document.getElementById('intlResultTable').innerHTML = '';
+
+    // Fill international form
+    document.getElementById('intlTotalShipping').value = '';
+    document.getElementById('intlTotalQty').value = grandTotalQty;
+    document.getElementById('intlCalcBtn').disabled = false;
+
+    // Show import preview in intl view
+    document.getElementById('intlFileName').textContent = '✅ 从肾表导入';
+    document.getElementById('intlImportStatus').innerHTML =
+        `<div class="alert alert-success">✅ 从肾表导入 ${intlData.length} 条数据，总数量 <b>${grandTotalQty}</b>（已自动填入）</div>`;
+    document.getElementById('intlPreview').innerHTML =
+        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 导入数据预览：</h4>' +
+        renderTable(
+            ['cn', '角色及数量', '解析数量'],
+            intlData.map(d => [d.cn, d.roleStr, d.totalQty])
+        );
+
+    // Switch to international view
+    document.getElementById('homeView').classList.remove('active');
+    document.getElementById('kidneyView').classList.remove('active');
+    document.getElementById('gukokuView').classList.remove('active');
+    document.getElementById('intlView').classList.add('active');
+    document.querySelector('.header').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ===================== 国谷随心配 =====================
