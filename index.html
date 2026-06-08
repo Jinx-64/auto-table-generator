@@ -1414,9 +1414,9 @@ function calculateKidney() {
                 cnEntry[b.typeName].totalPrice += avgP * count;
                 // Merge role counts from the block's roles for this CN
                 b.roles.forEach(role => {
-                    const hasCN = role.cnCells.some(c => c.cnName === cn);
-                    if (hasCN) {
-                        cnEntry[b.typeName].roles.set(role.name, (cnEntry[b.typeName].roles.get(role.name) || 0) + 1);
+                    const cnCount = role.cnCells.filter(c => c.cnName === cn).length;
+                    if (cnCount > 0) {
+                        cnEntry[b.typeName].roles.set(role.name, (cnEntry[b.typeName].roles.get(role.name) || 0) + cnCount);
                     }
                 });
             });
