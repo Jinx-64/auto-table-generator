@@ -1470,7 +1470,7 @@ function calculateKidney() {
         row._deposit = deposit;
         row._saving = saving;
         const rawTotal = Math.round((grandTotal - deposit - saving) * 100) / 100;
-        row.总肾 = (saving - rawTotal > 0) ? 0 : rawTotal;
+        row.总肾 = rawTotal < 0 ? 0 : rawTotal;
         results.push(row);
     });
 
