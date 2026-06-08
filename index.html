@@ -1571,7 +1571,7 @@ function exportKidneyResult() {
     const rows = results.map(r => {
         const row = [r.CN];
         if (hasSaving) row.push(r._saving || '');
-        row.push(fmt(r.总肾));
+        row.push(r._remaining > 0 ? '0(剩余' + fmt(r._remaining) + ')' : fmt(r.总肾));
         blocks.forEach(b => {
             row.push(r[b.typeName + '_roles'] || '');
             row.push(r[b.typeName + '_肾'] ? fmt(r[b.typeName + '_肾']) : '');
