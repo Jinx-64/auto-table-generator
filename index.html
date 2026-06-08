@@ -1499,22 +1499,24 @@ function calculateKidney() {
     kidneyResultData = { results, exportName, blocks, avgPrices, detailRows, depositMap, savingMap };
 
     // --- Display ---
-    const headers = ['CN'];
+    const headers = [];
     blocks.forEach(b => {
         headers.push(b.typeName);
         headers.push('肾');
     });
     if (hasDeposit) headers.push('定金');
+    headers.push('CN');
     if (hasSaving) headers.push('存肾');
     headers.push('总肾（元）');
 
     const rows = results.map(r => {
-        const row = [r.CN];
+        const row = [];
         blocks.forEach(b => {
             row.push(r[b.typeName + '_roles'] || '');
             row.push(r[b.typeName + '_肾'] ? fmt(r[b.typeName + '_肾']) : '');
         });
         if (hasDeposit) row.push(r._deposit || '');
+        row.push(r.CN);
         if (hasSaving) row.push(r._saving || '');
         if (r._remaining > 0) {
             row.push('0<span style="color:#ff7eb3;font-weight:700;">(剩余' + fmt(r._remaining) + ')</span>');
@@ -1525,14 +1527,15 @@ function calculateKidney() {
     });
 
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
-    const sumRow = ['📊 合计'];
+    const sumRow = [];
     blocks.forEach(() => { sumRow.push('', ''); });
     if (hasDeposit) sumRow.push('');
+    sumRow.push('📊 合计');
     if (hasSaving) sumRow.push('');
     sumRow.push(fmt(grandTotal));
     rows.push(sumRow);
 
-    const lastCol = 1 + blocks.length * 2 + (hasDeposit ? 1 : 0) + (hasSaving ? 1 : 0);
+    const lastCol = blocks.length * 2 + (hasDeposit ? 1 : 0) + 1 + (hasSaving ? 1 : 0);
     const highlightCols = [lastCol]; // highlight 总肾 column
 
     const hasAnyAdjustment = blocks.some(b => b.hasAdjustment);
@@ -1564,26 +1567,29 @@ function exportKidneyResult() {
     const { results, blocks, exportName, depositMap, savingMap } = kidneyResultData;
     const hasDeposit = depositMap && depositMap.size > 0;
     const hasSaving = savingMap && savingMap.size > 0;
-    const headers = ['CN'];
+    const headers = [];
     blocks.forEach(b => { headers.push(b.typeName); headers.push('肾'); });
     if (hasDeposit) headers.push('定金');
+    headers.push('CN');
     if (hasSaving) headers.push('存肾');
     headers.push('总肾（元）');
     const rows = results.map(r => {
-        const row = [r.CN];
+        const row = [];
         blocks.forEach(b => {
             row.push(r[b.typeName + '_roles'] || '');
             row.push(r[b.typeName + '_肾'] ? fmt(r[b.typeName + '_肾']) : '');
         });
         if (hasDeposit) row.push(r._deposit || '');
+        row.push(r.CN);
         if (hasSaving) row.push(r._saving || '');
         row.push(fmt(r.总肾));
         return row;
     });
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
-    const sumRow = ['合计'];
+    const sumRow = [];
     blocks.forEach(() => { sumRow.push('', ''); });
     if (hasDeposit) sumRow.push('');
+    sumRow.push('合计');
     if (hasSaving) sumRow.push('');
     sumRow.push(fmt(grandTotal));
     rows.push(sumRow);
