@@ -1470,7 +1470,13 @@ function calculateKidney() {
         row._deposit = deposit;
         row._saving = saving;
         const rawTotal = Math.round((grandTotal - deposit - saving) * 100) / 100;
-        row.总肾 = rawTotal < 0 ? 0 : rawTotal;
+        if (rawTotal < 0) {
+            row.总肾 = 0;
+            row._remaining = Math.round(-rawTotal * 100) / 100;
+        } else {
+            row.总肾 = rawTotal;
+            row._remaining = 0;
+        }
         results.push(row);
     });
 
@@ -1510,7 +1516,11 @@ function calculateKidney() {
         });
         if (hasDeposit) row.push(r._deposit || '');
         if (hasSaving) row.push(r._saving || '');
-        row.push(fmt(r.总肾));
+        if (r._remaining > 0) {
+            row.push('0(剩余' + fmt(r._remaining) + ')');
+        } else {
+            row.push(fmt(r.总肾));
+        }
         return row;
     });
 
