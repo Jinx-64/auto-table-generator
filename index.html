@@ -1517,7 +1517,7 @@ function calculateKidney() {
         if (hasDeposit) row.push(r._deposit || '');
         if (hasSaving) row.push(r._saving || '');
         if (r._remaining > 0) {
-            row.push('0(剩余' + fmt(r._remaining) + ')');
+            row.push('0<span style="color:#ff7eb3;font-weight:700;">(剩余' + fmt(r._remaining) + ')</span>');
         } else {
             row.push(fmt(r.总肾));
         }
