@@ -1469,7 +1469,8 @@ function calculateKidney() {
         const saving = hasSaving ? (savingMap.get(cn) || 0) : 0;
         row._deposit = deposit;
         row._saving = saving;
-        row.总肾 = Math.round((grandTotal - deposit - saving) * 100) / 100;
+        const rawTotal = Math.round((grandTotal - deposit - saving) * 100) / 100;
+        row.总肾 = (saving - rawTotal > 0) ? 0 : rawTotal;
         results.push(row);
     });
 
@@ -1505,7 +1506,7 @@ function calculateKidney() {
         const row = [r.CN];
         blocks.forEach(b => {
             row.push(r[b.typeName + '_roles'] || '');
-            row.push(r[b.typeName + '_肾'] !== undefined ? fmt(r[b.typeName + '_肾']) : '0');
+            row.push(r[b.typeName + '_肾'] ? fmt(r[b.typeName + '_肾']) : '');
         });
         if (hasDeposit) row.push(r._deposit || '');
         if (hasSaving) row.push(r._saving || '');
@@ -1562,7 +1563,7 @@ function exportKidneyResult() {
         const row = [r.CN];
         blocks.forEach(b => {
             row.push(r[b.typeName + '_roles'] || '');
-            row.push(r[b.typeName + '_肾'] !== undefined ? fmt(r[b.typeName + '_肾']) : '0');
+            row.push(r[b.typeName + '_肾'] ? fmt(r[b.typeName + '_肾']) : '');
         });
         if (hasDeposit) row.push(r._deposit || '');
         if (hasSaving) row.push(r._saving || '');
