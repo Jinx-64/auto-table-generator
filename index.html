@@ -954,6 +954,16 @@ function downloadExcel(data, filename) {
     XLSX.writeFile(wb, filename);
 }
 
+function downloadWorkbook(sheets, filename) {
+    const wb = XLSX.utils.book_new();
+    sheets.forEach(sheet => {
+        const ws = XLSX.utils.aoa_to_sheet(sheet.data);
+        if (sheet.data.length > 0) ws['!cols'] = sheet.data[0].map(() => ({ wch: 18 }));
+        XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+    });
+    XLSX.writeFile(wb, filename);
+}
+
 function renderTable(headers, rows, highlightCols) {
     if (!rows || rows.length === 0) {
         return '<div class="empty-state"><div class="icon">📭</div><p>暂无数据</p></div>';
@@ -976,31 +986,81 @@ function renderTable(headers, rows, highlightCols) {
 
 // ===================== 国际表（新版 — cn/角色及数量/国际） =====================
 function parseRoleQty(roleStr) {
-    // Parse "泉5,星2" → [{role:"泉",qty:5}, {role:"星",qty:2}]
+    // Parse "泉5,星2" or "5彩,1宙" → quantities for total count.
     if (!roleStr || !roleStr.trim()) return [];
     const parts = roleStr.split(/[,，]/);
     const result = [];
     parts.forEach(part => {
         part = part.trim();
         if (!part) return;
-        // Match: letters/chinese at start, digits at end
-        const m = part.match(/^(.+?)(\d+)$/);
+        let m = part.match(/^(\d+(?:\.\d+)?)(.+)$/);
         if (m) {
-            result.push({ role: m[1].trim(), qty: parseInt(m[2]) || 0 });
+            result.push({ role: m[2].trim(), qty: parseFloat(m[1]) || 0 });
+            return;
+        }
+        m = part.match(/^(.+?)(\d+(?:\.\d+)?)$/);
+        if (m) {
+            result.push({ role: m[1].trim(), qty: parseFloat(m[2]) || 0 });
         }
     });
     return result;
+}
+
+function sumRoleQty(roleStr) {
+    return parseRoleQty(String(roleStr || '')).reduce((s, r) => s + r.qty, 0);
+}
+
+function findIntlRoleQtyIndex(headers) {
+    return headers.findIndex(h => {
+        const text = String(h || '').trim();
+        if (!text) return false;
+        if (text.includes('花前') || text.includes('花后')) return false;
+        if (text.includes('总') || text.includes('国际')) return false;
+        return text.includes('角色') || text === '数量';
+    });
 }
 
 function findSheetName(sheets, targetName) {
     return Object.keys(sheets).find(name => String(name).trim() === targetName) || '';
 }
 
+function parseSavingSheet(raw) {
+    const savingMap = new Map();
+    const savingRows = normalizeSheet(raw || []);
+    if (!savingRows || savingRows.length < 2) return savingMap;
+    const savingHeaders = (savingRows[0] || []).map(h => String(h || '').trim());
+    const savingCnIdx = savingHeaders.findIndex(h => h.toLowerCase() === 'cn' || h === 'CN');
+    const savingGoodsIdx = savingHeaders.findIndex(h => h.includes('谷名') || h.includes('品名') || h.includes('名称'));
+    const savingAmtIdx = savingHeaders.findIndex(h => h.includes('扣除金额') || h.includes('金额') || h.includes('存肾'));
+    savingRows.slice(1).forEach(row => {
+        const cnIndex = savingCnIdx !== -1 ? savingCnIdx : 0;
+        const hasExplicitGoods = savingGoodsIdx !== -1;
+        const hasExplicitAmount = savingAmtIdx !== -1;
+        const rowHasThirdColumn = row.length >= 3 && String(row[2] || '').trim() !== '';
+        const goodsIndex = hasExplicitGoods ? savingGoodsIdx : (rowHasThirdColumn ? 1 : -1);
+        const amountIndex = hasExplicitAmount ? savingAmtIdx : (rowHasThirdColumn ? 2 : 1);
+        const cn = String(row[cnIndex] || '').trim();
+        const goodsName = goodsIndex !== -1 ? String(row[goodsIndex] || '').trim() : '';
+        const amt = parseFloat(row[amountIndex]);
+        if (cn && !isNaN(amt) && amt !== 0) {
+            const existing = savingMap.get(cn);
+            if (existing) {
+                existing.amount = Math.round((existing.amount + amt) * 100) / 100;
+                if (goodsName && !existing.goodsNames.includes(goodsName)) existing.goodsNames.push(goodsName);
+            } else {
+                savingMap.set(cn, { amount: amt, goodsNames: goodsName ? [goodsName] : [] });
+            }
+        }
+    });
+    return savingMap;
+}
+
 function getIntlMainSheet(sheets) {
     const storeName = findSheetName(sheets, '存肾');
     const names = Object.keys(sheets);
     const mainName = names.find(name => name !== storeName) || names[0];
-    return { mainName, storeName, raw: sheets[mainName] || [] };
+    const savingMap = storeName ? parseSavingSheet(sheets[storeName]) : new Map();
+    return { mainName, storeName, raw: sheets[mainName] || [], savingMap };
 }
 
 function syncIntlModeUI() {
@@ -1015,10 +1075,10 @@ function syncIntlModeUI() {
 
 function downloadIntlTemplate() {
     const templateData = [
-        ['cn', '角色及数量', '国际'],
-        ['', '', ''],
-        ['', '', ''],
-        ['', '', ''],
+        ['cn', '角色及数量(花前)', '角色及数量(花后)', '总数', '国际'],
+        ['', '', '', '', ''],
+        ['', '', '', '', ''],
+        ['', '', '', '', ''],
     ];
     downloadExcel(templateData, '国际表模板.xlsx');
 }
@@ -1041,9 +1101,11 @@ async function handleIntlFile(event) {
         if (raw.length < 2) throw new Error('模板数据不足，至少需要表头+1行数据');
         const headers = raw[0].map(h => String(h).trim());
         const cnIdx = headers.findIndex(h => h.toLowerCase() === 'cn');
-        const roleQtyIdx = headers.findIndex(h => h.includes('角色') || h.includes('数量'));
+        const roleBeforeIdx = headers.findIndex(h => h.includes('花前'));
+        const roleAfterIdx = headers.findIndex(h => h.includes('花后'));
+        const roleQtyIdx = findIntlRoleQtyIndex(headers);
         if (cnIdx === -1) throw new Error('未找到"cn"列');
-        if (roleQtyIdx === -1) throw new Error('未找到"角色及数量"列');
+        if (roleBeforeIdx === -1 && roleAfterIdx === -1 && roleQtyIdx === -1) throw new Error('未找到"角色及数量(花前)"、"角色及数量(花后)"或旧版"角色及数量"列');
 
         const dataRows = raw.slice(1).filter(r => {
             const cn = String(r[cnIdx] || '').trim();
@@ -1052,17 +1114,29 @@ async function handleIntlFile(event) {
         if (dataRows.length === 0) throw new Error('未检测到有效数据行（cn不能为空）');
 
         intlData = dataRows.map((row, idx) => {
-            const roleStr = String(row[roleQtyIdx] || '').trim();
-            const roles = parseRoleQty(roleStr);
-            const totalQty = roles.reduce((s, r) => s + r.qty, 0);
+            const roleBeforeStr = roleBeforeIdx !== -1 ? String(row[roleBeforeIdx] || '').trim() : '';
+            const roleAfterStr = roleAfterIdx !== -1 ? String(row[roleAfterIdx] || '').trim() : '';
+            const hasSplitRoleColumns = roleBeforeIdx !== -1 || roleAfterIdx !== -1;
+            const legacyRoleStr = !hasSplitRoleColumns && roleQtyIdx !== -1 ? String(row[roleQtyIdx] || '').trim() : '';
+            const roleStr = hasSplitRoleColumns ? [roleBeforeStr, roleAfterStr].filter(Boolean).join(' / ') : legacyRoleStr;
+            const roles = hasSplitRoleColumns
+                ? [...parseRoleQty(roleBeforeStr), ...parseRoleQty(roleAfterStr)]
+                : parseRoleQty(legacyRoleStr);
+            const beforeQty = sumRoleQty(roleBeforeStr);
+            const afterQty = sumRoleQty(roleAfterStr);
+            const legacyQty = hasSplitRoleColumns ? 0 : sumRoleQty(legacyRoleStr);
+            const totalQty = beforeQty + afterQty + legacyQty;
             return {
                 rowNum: idx + 1,
                 cn: String(row[cnIdx] || '').trim(),
+                roleBeforeStr: roleBeforeStr,
+                roleAfterStr: roleAfterStr,
                 roleStr: roleStr,
                 roles: roles,
                 totalQty: totalQty,
                 goodsName: '',
-                deductionAmount: null,
+                savingAmount: 0,
+                deductionAmount: 0,
             };
         });
 
@@ -1071,13 +1145,14 @@ async function handleIntlFile(event) {
         intlData._hasStoreSheet = Boolean(sheetInfo.storeName);
         intlData._storeSheetName = sheetInfo.storeName;
         intlData._mainSheetName = sheetInfo.mainName;
+        intlData._savingMap = sheetInfo.savingMap;
 
-        const storeTip = sheetInfo.storeName ? `，检测到 <b>${sheetInfo.storeName}</b> 表，导出时会追加谷名和扣除金额` : '';
+        const storeTip = sheetInfo.storeName ? `，检测到 <b>${sheetInfo.storeName}</b> 表，计算时会用存肾抵扣国际并追加谷名/扣除金额` : '';
         statusEl.innerHTML = `<div class="alert alert-success">✅ 成功导入 ${intlData.length} 条数据，总数量 <b>${grandTotalQty}</b>（已自动填入）${storeTip}</div>`;
         previewEl.innerHTML = '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 导入数据预览：</h4>' +
             renderTable(
-                ['cn', '角色及数量', '解析数量'],
-                intlData.map(d => [d.cn, d.roleStr, d.totalQty])
+                ['cn', '角色及数量(花前)', '角色及数量(花后)', '总数'],
+                intlData.map(d => [d.cn, d.roleBeforeStr || '', d.roleAfterStr || '', d.totalQty])
             );
         calcBtn.disabled = false;
     } catch (err) {
@@ -1106,39 +1181,51 @@ function calculateIntl() {
 
     const results = intlData.map(d => {
         const qtyRatio = totalQty > 0 ? d.totalQty / totalQty : 0;
-        const intlFee = mode === 'avg'
+        const rawIntlFee = mode === 'avg'
             ? Math.round(avgPrice * d.totalQty * 100) / 100
             : Math.round(qtyRatio * totalShipping * 100) / 100;
-        return { ...d, qtyRatio, intlFee, goodsName, deductionAmount: intlFee, calcMode: mode };
+        const savingInfo = intlData._savingMap ? intlData._savingMap.get(d.cn) : null;
+        const savingAmount = savingInfo ? savingInfo.amount : 0;
+        const deductionAmount = Math.min(rawIntlFee, savingAmount);
+        const intlFee = Math.max(0, Math.round((rawIntlFee - savingAmount) * 100) / 100);
+        const savingGoodsName = savingInfo ? savingInfo.goodsNames.join('、') : '';
+        return { ...d, qtyRatio, rawIntlFee, intlFee, goodsName, savingGoodsName, savingAmount, deductionAmount, calcMode: mode };
     });
 
     const summaryQty = results.reduce((s, r) => s + r.totalQty, 0);
+    const summaryRawIntl = results.reduce((s, r) => s + r.rawIntlFee, 0);
     const summaryIntl = results.reduce((s, r) => s + r.intlFee, 0);
+    const summaryDeduction = results.reduce((s, r) => s + r.deductionAmount, 0);
+    const hasStoreSheet = Boolean(intlData._hasStoreSheet);
+    const savingRows = hasStoreSheet
+        ? results
+            .filter(r => r.savingAmount || r.deductionAmount || r.savingGoodsName)
+            .map(r => [r.cn, r.savingAmount ? fmt(r.savingAmount) : '', r.savingGoodsName || goodsName, r.deductionAmount ? fmt(r.deductionAmount) : ''])
+        : [];
     intlResultData = results;
     intlResultData._mode = mode;
     intlResultData._hasStoreSheet = Boolean(intlData._hasStoreSheet);
     intlResultData._goodsName = goodsName;
+    intlResultData._savingRows = savingRows;
 
-    const hasStoreSheet = Boolean(intlData._hasStoreSheet);
-    const headers = ['cn', '角色及数量', '数量', '占比(%)', '国际（元）'];
-    if (hasStoreSheet) headers.push('谷名', '扣除金额');
+    const headers = ['cn', '角色及数量(花前)', '角色及数量(花后)', '总数', '占比(%)', '国际（元）'];
     const rows = results.map(r => {
-        const row = [r.cn, r.roleStr, r.totalQty, fmt(r.qtyRatio * 100), fmt(r.intlFee)];
-        if (hasStoreSheet) row.push(r.goodsName, fmt(r.deductionAmount));
-        return row;
+        return [r.cn, r.roleBeforeStr || '', r.roleAfterStr || '', r.totalQty, fmt(r.qtyRatio * 100), fmt(r.intlFee)];
     });
-    const totalRow = ['📊 合计', '', summaryQty, mode === 'avg' ? '-' : '100.00', fmt(summaryIntl)];
-    if (hasStoreSheet) totalRow.push(goodsName, fmt(summaryIntl));
+    const totalRow = ['📊 合计', '', '', summaryQty, mode === 'avg' ? '-' : '100.00', fmt(summaryIntl)];
     rows.push(totalRow);
 
     const formula = mode === 'avg'
         ? `📐 <b>国际运费</b> = 均价${fmt(avgPrice)}元 × CN数量`
         : `📐 <b>国际运费</b> = (CN数量 ÷ 总数量${totalQty}) × 总国际运费${fmt(totalShipping)}元`;
-    const storeNote = hasStoreSheet ? '；已为存肾表导出追加谷名和扣除金额' : '';
+    const storeNote = hasStoreSheet ? `；已用存肾抵扣国际（原国际合计${fmt(summaryRawIntl)}元，已扣${fmt(summaryDeduction)}元）` : '';
     document.getElementById('intlResultStatus').innerHTML =
         `<div class="alert alert-info">${formula}${storeNote}</div>`;
+    const savingPreview = hasStoreSheet && savingRows.length > 0
+        ? '<h4 style="margin:16px 0 8px;font-size:0.9rem;">📋 存肾抵扣：</h4>' + renderTable(['cn', '存肾', '谷名', '扣除金额'], savingRows, [1, 3])
+        : '';
     document.getElementById('intlResultTable').innerHTML =
-        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果：</h4>' + renderTable(headers, rows, hasStoreSheet ? [4, 6] : [4]) +
+        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果：</h4>' + renderTable(headers, rows, [5]) + savingPreview +
         '<div style="margin-top:12px;"><button class="btn btn-accent" onclick="exportIntlResult()">📥 导出结果表 (.xlsx)</button></div>';
     document.getElementById('intlResultTable').scrollIntoView({ behavior: 'smooth' });
     } catch(e) {
@@ -1148,13 +1235,15 @@ function calculateIntl() {
 
 function exportIntlResult() {
     if (!intlResultData || intlResultData.length === 0) { alert('没有可导出的数据'); return; }
-    const headers = ['cn', '角色及数量', '数量', '国际（元）'];
-    if (intlResultData._hasStoreSheet) headers.push('谷名', '扣除金额');
-    const rows = intlResultData.map(r => {
-        const row = [r.cn, r.roleStr, r.totalQty, fmt(r.intlFee)];
-        if (intlResultData._hasStoreSheet) row.push(r.goodsName, fmt(r.deductionAmount));
-        return row;
-    });
+    const headers = ['cn', '角色及数量(花前)', '角色及数量(花后)', '总数', '国际（元）'];
+    const rows = intlResultData.map(r => [r.cn, r.roleBeforeStr || '', r.roleAfterStr || '', r.totalQty, fmt(r.intlFee)]);
+    if (intlResultData._hasStoreSheet) {
+        downloadWorkbook([
+            { name: '排表', data: [headers, ...rows] },
+            { name: '存肾', data: [['cn', '存肾', '谷名', '扣除金额'], ...(intlResultData._savingRows || [])] },
+        ], '国际表_计算结果.xlsx');
+        return;
+    }
     downloadExcel([headers, ...rows], '国际表_计算结果.xlsx');
 }
 
@@ -1731,6 +1820,8 @@ function bridgeKidneyToIntl() {
         intlData.push({
             rowNum: i + 1,
             cn: cn,
+            roleBeforeStr: roleStr,
+            roleAfterStr: '',
             roleStr: roleStr,
             roles: roles,
             totalQty: totalQty,
@@ -1761,8 +1852,8 @@ function bridgeKidneyToIntl() {
     document.getElementById('intlPreview').innerHTML =
         '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 导入数据预览：</h4>' +
         renderTable(
-            ['cn', '角色及数量', '解析数量'],
-            intlData.map(d => [d.cn, d.roleStr, d.totalQty])
+            ['cn', '角色及数量(花前)', '角色及数量(花后)', '总数'],
+            intlData.map(d => [d.cn, d.roleBeforeStr || '', d.roleAfterStr || '', d.totalQty])
         );
 
     // Switch to international view
