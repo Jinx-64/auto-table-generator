@@ -6,31 +6,31 @@
     <title>自动生成表系统</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
-        /* ============ 卡通风格变量 ============ */
+        /* ============ 工具台风格变量 ============ */
         :root {
-            --bg: #fef9f0;
+            --bg: #f6f8fb;
             --card-bg: #ffffff;
-            --primary: #ff7eb3;
-            --primary-light: #ffe0ec;
-            --primary-dark: #e8669a;
-            --green: #51cf66;
-            --green-light: #e6f9e8;
-            --yellow: #ffc940;
-            --yellow-light: #fff7e0;
-            --purple: #b197fc;
-            --purple-light: #f3f0ff;
-            --blue: #74c0fc;
-            --blue-light: #e7f5ff;
-            --text: #5c4a3d;
-            --text-secondary: #a89880;
-            --border: #f0e6d8;
-            --danger: #ff6b6b;
-            --radius: 24px;
-            --radius-sm: 14px;
-            --shadow-sm: 0 3px 12px rgba(180,150,120,0.08);
-            --shadow: 0 6px 24px rgba(180,150,120,0.10);
-            --shadow-lg: 0 12px 40px rgba(180,150,120,0.14);
-            --transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --primary-dark: #1d4ed8;
+            --green: #16a34a;
+            --green-light: #dcfce7;
+            --yellow: #f59e0b;
+            --yellow-light: #fef3c7;
+            --purple: #7c3aed;
+            --purple-light: #ede9fe;
+            --blue: #0ea5e9;
+            --blue-light: #e0f2fe;
+            --text: #172033;
+            --text-secondary: #64748b;
+            --border: #dbe3ef;
+            --danger: #dc2626;
+            --radius: 8px;
+            --radius-sm: 8px;
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+            --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+            --shadow-lg: 0 18px 48px rgba(15, 23, 42, 0.12);
+            --transition: 0.18s ease;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,9 +39,7 @@
             font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', -apple-system, sans-serif;
             background: var(--bg);
             background-image:
-                radial-gradient(circle at 10% 20%, rgba(255,126,179,0.06) 0%, transparent 50%),
-                radial-gradient(circle at 90% 80%, rgba(116,192,252,0.06) 0%, transparent 50%),
-                radial-gradient(circle at 50% 50%, rgba(177,151,252,0.04) 0%, transparent 50%);
+                linear-gradient(180deg, rgba(37,99,235,0.06), transparent 260px);
             color: var(--text);
             min-height: 100vh;
             line-height: 1.6;
@@ -51,21 +49,21 @@
 
         /* ============ 头部 ============ */
         .header {
-            background: linear-gradient(135deg, #ff9ec4 0%, #ffc77d 40%, #ffd97a 70%, #ffb3ba 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 52%, #0ea5e9 100%);
             color: #fff;
-            padding: 24px 0;
+            padding: 20px 0;
             text-align: center;
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 4px 20px rgba(255,126,179,0.20);
-            border-bottom: 4px dotted rgba(255,255,255,0.5);
+            box-shadow: 0 10px 30px rgba(15,23,42,0.18);
+            border-bottom: 1px solid rgba(255,255,255,0.18);
         }
         .header h1 {
             font-size: 1.7rem;
             font-weight: 800;
             letter-spacing: 2px;
-            text-shadow: 2px 2px 0 rgba(0,0,0,0.08);
+            text-shadow: none;
         }
         .header .subtitle {
             font-size: 0.85rem;
@@ -75,7 +73,7 @@
         }
 
         /* ============ 容器 ============ */
-        .container { max-width: 1100px; width: 100%; margin: 0 auto; padding: 32px 20px; flex: 1; }
+        .container { max-width: 1180px; width: 100%; margin: 0 auto; padding: 32px 20px; flex: 1; }
         .home-view { display: none; }
         .home-view.active {
             display: flex;
@@ -127,12 +125,12 @@
         /* ============ 首页卡片 — 卡通泡泡风格 ============ */
         .card {
             background: var(--card-bg);
-            border-radius: 28px;
-            padding: 40px 24px 28px;
+            border-radius: var(--radius);
+            padding: 30px 24px 26px;
             box-shadow: var(--shadow);
             cursor: pointer;
             transition: var(--transition);
-            border: 3px solid transparent;
+            border: 1px solid var(--border);
             position: relative;
             overflow: visible;
             text-align: center;
@@ -140,21 +138,10 @@
             flex-direction: column;
             align-items: center;
         }
-        .card::before {
-            content: '';
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 6px;
-            border-radius: 6px;
-            background: #e0d8cc;
-            transition: var(--transition);
-        }
+        .card::before { display: none; }
         /* 卡片1(肾表) — 橙色主题 */
         .card:nth-child(1):hover {
-            transform: translateY(-8px) scale(1.03);
+            transform: translateY(-4px);
             border-color: #ffa94d;
             background: linear-gradient(180deg, #fff9f0 0%, #fff 100%);
             box-shadow: 0 12px 40px rgba(255,169,77,0.22);
@@ -164,7 +151,7 @@
 
         /* 卡片2(国际表) — 蓝色主题 */
         .card:nth-child(2):hover {
-            transform: translateY(-8px) scale(1.03);
+            transform: translateY(-4px);
             border-color: #4dabf7;
             background: linear-gradient(180deg, #f0f7ff 0%, #fff 100%);
             box-shadow: 0 12px 40px rgba(77,171,247,0.22);
@@ -174,7 +161,7 @@
 
         /* 卡片3(国谷随心配) — 粉色主题 */
         .card:nth-child(3):hover {
-            transform: translateY(-8px) scale(1.03);
+            transform: translateY(-4px);
             border-color: #f06595;
             background: linear-gradient(180deg, #fff0f5 0%, #fff 100%);
             box-shadow: 0 12px 40px rgba(240,101,149,0.22);
@@ -182,12 +169,12 @@
         .card:nth-child(3):hover::before { background: #f06595; width: 70px; }
         .card:nth-child(3):hover .card-icon { background: #fce4ec; }
 
-        .card:active { transform: translateY(-2px) scale(0.98); }
+        .card:active { transform: translateY(-1px); }
 
         .card-icon {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
+            width: 64px;
+            height: 64px;
+            border-radius: var(--radius);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -198,13 +185,7 @@
             transition: var(--transition);
         }
         .card-icon::after {
-            content: '';
-            position: absolute;
-            inset: -6px;
-            border-radius: 50%;
-            border: 3px dashed currentColor;
-            opacity: 0.25;
-            animation: spinSlow 20s linear infinite;
+            display: none;
         }
         @keyframes spinSlow { to { transform: rotate(360deg); } }
 
@@ -274,9 +255,9 @@
         .panel {
             background: var(--card-bg);
             border-radius: var(--radius);
-            padding: 28px 32px;
+            padding: 24px 28px;
             box-shadow: var(--shadow-sm);
-            border: 2px solid var(--border);
+            border: 1px solid var(--border);
             transition: var(--transition);
             position: relative;
         }
@@ -298,13 +279,13 @@
             justify-content: center;
             width: 30px;
             height: 30px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), #ff9ec4);
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--primary), var(--blue));
             color: #fff;
             font-size: 0.8rem;
             font-weight: 800;
             flex-shrink: 0;
-            box-shadow: 0 3px 10px rgba(255,126,179,0.25);
+            box-shadow: 0 3px 10px rgba(37,99,235,0.18);
         }
 
         /* ============ 表单 ============ */
@@ -318,11 +299,11 @@
         }
         .form-group input {
             padding: 12px 16px;
-            border: 2.5px solid var(--border);
+            border: 2px solid var(--border);
             border-radius: var(--radius-sm);
             font-size: 0.95rem;
             transition: var(--transition);
-            background: #fefdfb;
+            background: #fff;
             color: var(--text);
             outline: none;
             font-weight: 500;
@@ -330,12 +311,32 @@
         .form-group input:focus {
             border-color: var(--primary);
             background: #fff;
-            box-shadow: 0 0 0 4px rgba(255,126,179,0.08);
+            box-shadow: 0 0 0 4px rgba(37,99,235,0.10);
         }
         .form-group input:read-only {
-            background: #faf7f2;
-            color: #b8a898;
+            background: #f8fafc;
+            color: var(--text-secondary);
             cursor: default;
+        }
+        .form-group select {
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            transition: var(--transition);
+            background: #fff;
+            color: var(--text);
+            outline: none;
+            font-weight: 600;
+        }
+        .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37,99,235,0.10);
+        }
+        .form-hint {
+            margin-top: 10px;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
         }
 
         /* ============ 按钮 ============ */
@@ -356,19 +357,19 @@
         .btn:active { transform: scale(0.95); }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary), #ff9ec4);
+            background: linear-gradient(135deg, var(--primary), var(--blue));
             color: #fff;
-            box-shadow: 0 4px 16px rgba(255,126,179,0.25);
+            box-shadow: 0 4px 16px rgba(37,99,235,0.22);
         }
         .btn-primary:hover {
-            box-shadow: 0 6px 24px rgba(255,126,179,0.35);
+            box-shadow: 0 6px 24px rgba(37,99,235,0.28);
             transform: translateY(-2px);
         }
 
         .btn-outline {
             background: #fff;
             color: var(--primary);
-            border: 2.5px solid var(--primary);
+            border: 2px solid var(--primary);
         }
         .btn-outline:hover {
             background: var(--primary-light);
@@ -399,27 +400,20 @@
 
         /* ============ 上传区域 ============ */
         .upload-zone {
-            border: 3px dashed #e0d5c0;
+            border: 2px dashed #b8c4d6;
             border-radius: var(--radius);
-            padding: 40px;
+            padding: 34px;
             text-align: center;
             cursor: pointer;
             transition: var(--transition);
-            background: #fefdfb;
+            background: #f8fafc;
             position: relative;
         }
-        .upload-zone::before {
-            content: '';
-            position: absolute;
-            inset: 8px;
-            border-radius: calc(var(--radius) - 8px);
-            border: 2px dotted #f0e6d8;
-            pointer-events: none;
-        }
+        .upload-zone::before { display: none; }
         .upload-zone:hover, .upload-zone.drag-over {
             border-color: var(--primary);
-            background: #fff5f8;
-            transform: scale(1.01);
+            background: #eff6ff;
+            transform: translateY(-1px);
         }
         .upload-zone:hover::before, .upload-zone.drag-over::before {
             border-color: #ffc9de;
@@ -546,10 +540,10 @@
             25% { transform: rotate(-5deg); }
             75% { transform: rotate(5deg); }
         }
-        .card:hover .card-icon { animation: wiggle 0.4s ease; }
-        .home-view.active .card:nth-child(1) .card-icon { animation: float 3s ease-in-out infinite; }
-        .home-view.active .card:nth-child(2) .card-icon { animation: float 3s ease-in-out 0.5s infinite; }
-        .home-view.active .card:nth-child(3) .card-icon { animation: float 3s ease-in-out 1s infinite; }
+        .card:hover .card-icon,
+        .home-view.active .card:nth-child(1) .card-icon,
+        .home-view.active .card:nth-child(2) .card-icon,
+        .home-view.active .card:nth-child(3) .card-icon { animation: none; }
 
         /* ============ 可爱滚动条 ============ */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -615,7 +609,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
             返回首页
         </button>
-        <h2 style="margin-bottom:20px;">🌍 国际表 — 按数量分摊国际运费</h2>
+        <h2 style="margin-bottom:20px;">🌍 国际表 — 运费分摊 / 均价直算</h2>
         <div class="workflow">
             <div class="panel">
                 <h3><span class="step-num">1</span> 下载模板</h3>
@@ -635,9 +629,19 @@
             <div class="panel">
                 <h3><span class="step-num">3</span> 填写计算参数</h3>
                 <div class="panel-row">
-                    <div class="form-group"><label>总国际运费（元）</label><input type="number" id="intlTotalShipping" placeholder="输入总运费" step="0.01" min="0"></div>
+                    <div class="form-group">
+                        <label>计算方式</label>
+                        <select id="intlCalcMode" onchange="syncIntlModeUI()">
+                            <option value="share">按总国际运费分摊</option>
+                            <option value="avg">按均价直接计算</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>总国际运费（元）</label><input type="number" id="intlTotalShipping" placeholder="分摊模式填写" step="0.01" min="0"></div>
+                    <div class="form-group"><label>均价（元/个）</label><input type="number" id="intlAvgPrice" placeholder="均价模式填写" step="0.01" min="0"></div>
+                    <div class="form-group"><label>谷名</label><input type="text" id="intlGoodsName" placeholder="例：吧唧/亚克力"></div>
                     <div class="form-group"><label>总数量</label><input type="number" id="intlTotalQty" placeholder="自动汇总" step="1" min="1" readonly></div>
                 </div>
+                <div class="form-hint">均价模式：国际 = 均价 × 数量。若导入文件包含名为「存肾」的工作表，导出结果会在金额后追加「谷名」和「扣除金额」。</div>
             </div>
             <div class="panel">
                 <h3><span class="step-num">4</span> 计算并生成新表</h3>
@@ -799,9 +803,13 @@ function resetAll() {
     document.getElementById('intlResultStatus').innerHTML = '';
     document.getElementById('intlResultTable').innerHTML = '';
     document.getElementById('intlCalcBtn').disabled = true;
+    document.getElementById('intlCalcMode').value = 'share';
     document.getElementById('intlTotalShipping').value = '';
+    document.getElementById('intlAvgPrice').value = '';
+    document.getElementById('intlGoodsName').value = '';
     document.getElementById('intlTotalQty').value = '';
     document.getElementById('intlFileInput').value = '';
+    syncIntlModeUI();
 
     // Reset kidney table
     document.getElementById('kidneyFileName').textContent = '';
@@ -984,6 +992,27 @@ function parseRoleQty(roleStr) {
     return result;
 }
 
+function findSheetName(sheets, targetName) {
+    return Object.keys(sheets).find(name => String(name).trim() === targetName) || '';
+}
+
+function getIntlMainSheet(sheets) {
+    const storeName = findSheetName(sheets, '存肾');
+    const names = Object.keys(sheets);
+    const mainName = names.find(name => name !== storeName) || names[0];
+    return { mainName, storeName, raw: sheets[mainName] || [] };
+}
+
+function syncIntlModeUI() {
+    const mode = document.getElementById('intlCalcMode').value;
+    const totalShipping = document.getElementById('intlTotalShipping');
+    const avgPrice = document.getElementById('intlAvgPrice');
+    totalShipping.disabled = mode === 'avg';
+    avgPrice.disabled = mode !== 'avg';
+    totalShipping.placeholder = mode === 'avg' ? '均价模式不需要' : '分摊模式填写';
+    avgPrice.placeholder = mode === 'avg' ? '输入每个均价' : '直算模式填写';
+}
+
 function downloadIntlTemplate() {
     const templateData = [
         ['cn', '角色及数量', '国际'],
@@ -1006,7 +1035,9 @@ async function handleIntlFile(event) {
     statusEl.innerHTML = '';
 
     try {
-        const raw = await readExcelFile(file);
+        const sheets = await readAllSheets(file);
+        const sheetInfo = getIntlMainSheet(sheets);
+        const raw = sheetInfo.raw;
         if (raw.length < 2) throw new Error('模板数据不足，至少需要表头+1行数据');
         const headers = raw[0].map(h => String(h).trim());
         const cnIdx = headers.findIndex(h => h.toLowerCase() === 'cn');
@@ -1030,13 +1061,19 @@ async function handleIntlFile(event) {
                 roleStr: roleStr,
                 roles: roles,
                 totalQty: totalQty,
+                goodsName: '',
+                deductionAmount: null,
             };
         });
 
         const grandTotalQty = intlData.reduce((s, d) => s + d.totalQty, 0);
         totalQtyInput.value = grandTotalQty;
+        intlData._hasStoreSheet = Boolean(sheetInfo.storeName);
+        intlData._storeSheetName = sheetInfo.storeName;
+        intlData._mainSheetName = sheetInfo.mainName;
 
-        statusEl.innerHTML = `<div class="alert alert-success">✅ 成功导入 ${intlData.length} 条数据，总数量 <b>${grandTotalQty}</b>（已自动填入）</div>`;
+        const storeTip = sheetInfo.storeName ? `，检测到 <b>${sheetInfo.storeName}</b> 表，导出时会追加谷名和扣除金额` : '';
+        statusEl.innerHTML = `<div class="alert alert-success">✅ 成功导入 ${intlData.length} 条数据，总数量 <b>${grandTotalQty}</b>（已自动填入）${storeTip}</div>`;
         previewEl.innerHTML = '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 导入数据预览：</h4>' +
             renderTable(
                 ['cn', '角色及数量', '解析数量'],
@@ -1058,29 +1095,50 @@ function calculateIntl() {
         document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请先导入模板</div>';
         return;
     }
+    const mode = document.getElementById('intlCalcMode').value;
     const totalShipping = parseFloat(document.getElementById('intlTotalShipping').value);
+    const avgPrice = parseFloat(document.getElementById('intlAvgPrice').value);
+    const goodsName = document.getElementById('intlGoodsName').value.trim();
     const totalQty = parseInt(document.getElementById('intlTotalQty').value);
-    if (isNaN(totalShipping) || totalShipping < 0) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请填写有效的总国际运费</div>'; return; }
     if (isNaN(totalQty) || totalQty <= 0) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 总数量无效</div>'; return; }
+    if (mode === 'share' && (isNaN(totalShipping) || totalShipping < 0)) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请填写有效的总国际运费</div>'; return; }
+    if (mode === 'avg' && (isNaN(avgPrice) || avgPrice < 0)) { document.getElementById('intlResultStatus').innerHTML = '<div class="alert alert-warning">⚠️ 请填写有效的均价</div>'; return; }
 
     const results = intlData.map(d => {
         const qtyRatio = totalQty > 0 ? d.totalQty / totalQty : 0;
-        const intlFee = Math.round(qtyRatio * totalShipping * 100) / 100;
-        return { ...d, qtyRatio, intlFee };
+        const intlFee = mode === 'avg'
+            ? Math.round(avgPrice * d.totalQty * 100) / 100
+            : Math.round(qtyRatio * totalShipping * 100) / 100;
+        return { ...d, qtyRatio, intlFee, goodsName, deductionAmount: intlFee, calcMode: mode };
     });
 
     const summaryQty = results.reduce((s, r) => s + r.totalQty, 0);
     const summaryIntl = results.reduce((s, r) => s + r.intlFee, 0);
     intlResultData = results;
+    intlResultData._mode = mode;
+    intlResultData._hasStoreSheet = Boolean(intlData._hasStoreSheet);
+    intlResultData._goodsName = goodsName;
 
+    const hasStoreSheet = Boolean(intlData._hasStoreSheet);
     const headers = ['cn', '角色及数量', '数量', '占比(%)', '国际（元）'];
-    const rows = results.map(r => [r.cn, r.roleStr, r.totalQty, fmt(r.qtyRatio * 100), fmt(r.intlFee)]);
-    rows.push(['📊 合计', '', summaryQty, '100.00', fmt(summaryIntl)]);
+    if (hasStoreSheet) headers.push('谷名', '扣除金额');
+    const rows = results.map(r => {
+        const row = [r.cn, r.roleStr, r.totalQty, fmt(r.qtyRatio * 100), fmt(r.intlFee)];
+        if (hasStoreSheet) row.push(r.goodsName, fmt(r.deductionAmount));
+        return row;
+    });
+    const totalRow = ['📊 合计', '', summaryQty, mode === 'avg' ? '-' : '100.00', fmt(summaryIntl)];
+    if (hasStoreSheet) totalRow.push(goodsName, fmt(summaryIntl));
+    rows.push(totalRow);
 
+    const formula = mode === 'avg'
+        ? `📐 <b>国际运费</b> = 均价${fmt(avgPrice)}元 × CN数量`
+        : `📐 <b>国际运费</b> = (CN数量 ÷ 总数量${totalQty}) × 总国际运费${fmt(totalShipping)}元`;
+    const storeNote = hasStoreSheet ? '；已为存肾表导出追加谷名和扣除金额' : '';
     document.getElementById('intlResultStatus').innerHTML =
-        `<div class="alert alert-info">📐 <b>国际运费</b> = (CN数量 ÷ 总数量${totalQty}) × 总国际运费${fmt(totalShipping)}元</div>`;
+        `<div class="alert alert-info">${formula}${storeNote}</div>`;
     document.getElementById('intlResultTable').innerHTML =
-        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果：</h4>' + renderTable(headers, rows, [4]) +
+        '<h4 style="margin-bottom:8px;font-size:0.9rem;">📋 计算结果：</h4>' + renderTable(headers, rows, hasStoreSheet ? [4, 6] : [4]) +
         '<div style="margin-top:12px;"><button class="btn btn-accent" onclick="exportIntlResult()">📥 导出结果表 (.xlsx)</button></div>';
     document.getElementById('intlResultTable').scrollIntoView({ behavior: 'smooth' });
     } catch(e) {
@@ -1091,7 +1149,12 @@ function calculateIntl() {
 function exportIntlResult() {
     if (!intlResultData || intlResultData.length === 0) { alert('没有可导出的数据'); return; }
     const headers = ['cn', '角色及数量', '数量', '国际（元）'];
-    const rows = intlResultData.map(r => [r.cn, r.roleStr, r.totalQty, fmt(r.intlFee)]);
+    if (intlResultData._hasStoreSheet) headers.push('谷名', '扣除金额');
+    const rows = intlResultData.map(r => {
+        const row = [r.cn, r.roleStr, r.totalQty, fmt(r.intlFee)];
+        if (intlResultData._hasStoreSheet) row.push(r.goodsName, fmt(r.deductionAmount));
+        return row;
+    });
     downloadExcel([headers, ...rows], '国际表_计算结果.xlsx');
 }
 
@@ -1651,6 +1714,9 @@ function bridgeKidneyToIntl() {
             totalQty: totalQty,
         });
     });
+    intlData._hasStoreSheet = false;
+    intlData._storeSheetName = '';
+    intlData._mainSheetName = '肾表结果';
 
     // Clear previous intl results
     intlResultData = null;
@@ -1658,9 +1724,13 @@ function bridgeKidneyToIntl() {
     document.getElementById('intlResultTable').innerHTML = '';
 
     // Fill international form
+    document.getElementById('intlCalcMode').value = 'share';
     document.getElementById('intlTotalShipping').value = '';
+    document.getElementById('intlAvgPrice').value = '';
+    document.getElementById('intlGoodsName').value = '';
     document.getElementById('intlTotalQty').value = grandTotalQty;
     document.getElementById('intlCalcBtn').disabled = false;
+    syncIntlModeUI();
 
     // Show import preview in intl view
     document.getElementById('intlFileName').textContent = '✅ 从肾表导入';
@@ -2143,6 +2213,8 @@ function exportGukokuResult() {
         // Restore view but clear all content
         showDetail(savedView);
         resetAll();
+    } else {
+        syncIntlModeUI();
     }
 })();
 
