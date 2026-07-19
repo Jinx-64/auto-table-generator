@@ -1386,7 +1386,10 @@ async function handleKidneyFile(event) {
             depositRows.slice(1).forEach(row => {
                 const cn = String(row[0] || '').trim();
                 const amt = parseFloat(row[1]);
-                if (cn && !isNaN(amt) && amt !== 0) depositMap.set(cn, amt);
+                if (cn && !isNaN(amt) && amt !== 0) {
+                    // A CN can appear more than once in the deposit sheet.
+                    depositMap.set(cn, Math.round(((depositMap.get(cn) || 0) + amt) * 100) / 100);
+                }
             });
         }
 
@@ -1639,18 +1642,23 @@ function calculateKidney() {
         const deposit = hasDeposit ? (depositMap.get(cn) || 0) : 0;
         const savingInfo = hasSaving ? savingMap.get(cn) : null;
         const saving = savingInfo ? savingInfo.amount : 0;
+        // Apply deposit first, then apply available savings to the remaining balance.
+        const roundedGrossTotal = Math.round(grandTotal * 100) / 100;
+        const depositUsed = Math.min(deposit, roundedGrossTotal);
+        const depositOverflow = Math.max(deposit - roundedGrossTotal, 0);
+        const afterDeposit = Math.max(roundedGrossTotal - depositUsed, 0);
+        const savingDeduction = Math.min(saving, afterDeposit);
+        row._grossTotal = roundedGrossTotal;
         row._deposit = deposit;
+        row._depositUsed = depositUsed;
+        row._depositOverflow = Math.round(depositOverflow * 100) / 100;
         row._saving = saving;
         row._savingGoodsName = savingInfo ? savingInfo.goodsNames.join('、') : '';
-        row._savingDeduction = saving;
-        const rawTotal = Math.round((grandTotal - deposit - saving) * 100) / 100;
-        if (rawTotal < 0) {
-            row.总肾 = 0;
-            row._remaining = Math.round(-rawTotal * 100) / 100;
-        } else {
-            row.总肾 = rawTotal;
-            row._remaining = 0;
-        }
+        // Keep the exported value consistent with the old "扣除金额" column:
+        // it shows the CN's recorded savings, while the balance only deducts what remains after deposit.
+        row._savingDeduction = Math.round(saving * 100) / 100;
+        row.总肾 = Math.round((afterDeposit - savingDeduction) * 100) / 100;
+        row._remaining = 0;
         results.push(row);
     });
 
@@ -1673,40 +1681,17 @@ function calculateKidney() {
     kidneyResultData = { results, exportName, blocks, avgPrices, detailRows, depositMap, savingMap };
 
     // --- Display ---
-    const headers = ['CN'];
-    if (hasSaving) headers.push('谷名', '扣除金额');
-    headers.push('总肾（元）');
-    blocks.forEach(b => {
-        headers.push(b.typeName);
-        headers.push('肾');
-    });
-    if (hasDeposit) headers.push('定金');
+    const headers = getKidneyExportHeaders(blocks);
 
     const rows = results.map(r => {
-        const row = [r.CN];
-        if (hasSaving) row.push(r._savingGoodsName || '', r._savingDeduction ? fmt(r._savingDeduction) : '');
-        if (r._remaining > 0) {
-            row.push('0<span style="color:#ff7eb3;font-weight:700;">(剩余' + fmt(r._remaining) + ')</span>');
-        } else {
-            row.push(fmt(r.总肾));
-        }
-        blocks.forEach(b => {
-            row.push(r[b.typeName + '_roles'] || '');
-            row.push(r[b.typeName + '_肾'] ? fmt(r[b.typeName + '_肾']) : '');
-        });
-        if (hasDeposit) row.push(r._deposit || '');
-        return row;
+        return buildKidneyExportRow(r, blocks);
     });
 
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
-    const sumRow = ['📊 合计'];
-    if (hasSaving) sumRow.push('', '');
-    sumRow.push(fmt(grandTotal));
-    blocks.forEach(() => { sumRow.push('', ''); });
-    if (hasDeposit) sumRow.push('');
+    const sumRow = ['📊 合计', fmt(grandTotal), '', '', '', '', ''];
     rows.push(sumRow);
 
-    const highlightCols = [hasSaving ? 3 : 1]; // 总肾 column
+    const highlightCols = [1]; // 总肾 column
 
     const hasAnyAdjustment = blocks.some(b => b.hasAdjustment);
     document.getElementById('kidneyResultStatus').innerHTML =
@@ -1735,32 +1720,33 @@ function calculateKidney() {
 function exportKidneyResult() {
     if (!kidneyResultData || !kidneyResultData.results) { alert('没有可导出的数据'); return; }
     const { results, blocks, exportName, depositMap, savingMap } = kidneyResultData;
-    const hasDeposit = depositMap && depositMap.size > 0;
-    const hasSaving = savingMap && savingMap.size > 0;
-    const headers = ['CN'];
-    if (hasSaving) headers.push('谷名', '扣除金额');
-    headers.push('总肾（元）');
-    blocks.forEach(b => { headers.push(b.typeName); headers.push('肾'); });
-    if (hasDeposit) headers.push('定金');
-    const rows = results.map(r => {
-        const row = [r.CN];
-        if (hasSaving) row.push(r._savingGoodsName || '', r._savingDeduction ? fmt(r._savingDeduction) : '');
-        row.push(r._remaining > 0 ? '0(剩余' + fmt(r._remaining) + ')' : fmt(r.总肾));
-        blocks.forEach(b => {
-            row.push(r[b.typeName + '_roles'] || '');
-            row.push(r[b.typeName + '_肾'] ? fmt(r[b.typeName + '_肾']) : '');
-        });
-        if (hasDeposit) row.push(r._deposit || '');
-        return row;
-    });
+    const headers = getKidneyExportHeaders(blocks);
+    const rows = results.map(r => buildKidneyExportRow(r, blocks));
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
-    const sumRow = ['合计'];
-    if (hasSaving) sumRow.push('', '');
-    sumRow.push(fmt(grandTotal));
-    blocks.forEach(() => { sumRow.push('', ''); });
-    if (hasDeposit) sumRow.push('');
+    const sumRow = ['合计', fmt(grandTotal), '', '', '', '', ''];
     rows.push(sumRow);
     downloadExcel([headers, ...rows], `${exportName}.xlsx`);
+}
+
+function getKidneyExportHeaders(blocks) {
+    const goodsColumn = blocks.length === 1 ? blocks[0].typeName : '谷子明细';
+    return ['cn', '总肾（元）', goodsColumn, '肾', '存肾扣除金额', '定金', '定金溢出'];
+}
+
+function buildKidneyExportRow(row, blocks) {
+    const roleText = blocks.map(b => {
+        const roles = row[b.typeName + '_roles'] || '';
+        return blocks.length === 1 || !roles ? roles : `${b.typeName}:${roles}`;
+    }).filter(Boolean).join('；');
+    return [
+        row.CN,
+        fmt(row.总肾),
+        roleText,
+        fmt(row._grossTotal || 0),
+        row._savingDeduction ? fmt(row._savingDeduction) : '',
+        row._deposit ? fmt(row._deposit) : '',
+        row._depositOverflow ? fmt(row._depositOverflow) : '',
+    ];
 }
 
 function exportKidneyDetail() {
