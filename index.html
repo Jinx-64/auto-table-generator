@@ -1642,7 +1642,7 @@ function calculateKidney() {
         const deposit = hasDeposit ? (depositMap.get(cn) || 0) : 0;
         const savingInfo = hasSaving ? savingMap.get(cn) : null;
         const saving = savingInfo ? savingInfo.amount : 0;
-        // Apply deposit first, then apply available savings to the remaining balance.
+        // Apply deposit first. Any excess deposit becomes new savings; only use original savings when a balance remains.
         const roundedGrossTotal = Math.round(grandTotal * 100) / 100;
         const depositUsed = Math.min(deposit, roundedGrossTotal);
         const depositOverflow = Math.max(deposit - roundedGrossTotal, 0);
@@ -1654,11 +1654,9 @@ function calculateKidney() {
         row._depositOverflow = Math.round(depositOverflow * 100) / 100;
         row._saving = saving;
         row._savingGoodsName = savingInfo ? savingInfo.goodsNames.join('、') : '';
-        // Keep the exported value consistent with the old "扣除金额" column:
-        // it shows the CN's recorded savings, while the balance only deducts what remains after deposit.
-        row._savingDeduction = Math.round(saving * 100) / 100;
+        row._savingDeduction = Math.round(savingDeduction * 100) / 100;
+        row._savingRemaining = Math.round((saving - savingDeduction + depositOverflow) * 100) / 100;
         row.总肾 = Math.round((afterDeposit - savingDeduction) * 100) / 100;
-        row._remaining = 0;
         results.push(row);
     });
 
@@ -1699,7 +1697,7 @@ function calculateKidney() {
             📐 <b>计算逻辑</b>：${hasAnyAdjustment
                 ? '有调价类型 → 价格 = 均价 + 调价；无调价类型 → 均价 × 数量'
                 : '无调价 → 均价 × 数量 = 总肾'}<br>
-            📌 <b>总肾</b> = 各类型肾之和${hasAnyAdjustment ? ' &nbsp;|&nbsp; 调价总和均验证为0' : ''}
+            📌 <b>抵扣顺序</b>：先扣定金；定金溢出转为存肾；仅在仍有应付时扣原存肾。存肾有余额时，总肾显示剩余金额。
         </div>`;
 
     document.getElementById('kidneyResultTable').innerHTML =
@@ -1725,7 +1723,19 @@ function exportKidneyResult() {
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
     const sumRow = ['合计', fmt(grandTotal), '', '', '', '', ''];
     rows.push(sumRow);
-    downloadExcel([headers, ...rows], `${exportName}.xlsx`);
+    const savingRows = results
+        .filter(r => r._saving > 0 || r._depositOverflow > 0)
+        .map(r => [
+            r.CN,
+            fmt(r._saving || 0),
+            r._savingGoodsName || '',
+            fmt(r._savingDeduction || 0),
+            fmt(r._savingRemaining || 0),
+        ]);
+    downloadWorkbook([
+        { name: '排表', data: [headers, ...rows] },
+        { name: '存肾', data: [['cn', '原存肾', '谷名', '扣除金额', '剩余存肾'], ...savingRows] },
+    ], `${exportName}.xlsx`);
 }
 
 function getKidneyExportHeaders(blocks) {
@@ -1740,13 +1750,20 @@ function buildKidneyExportRow(row, blocks) {
     }).filter(Boolean).join('；');
     return [
         row.CN,
-        fmt(row.总肾),
+        formatKidneyTotal(row),
         roleText,
         fmt(row._grossTotal || 0),
         row._savingDeduction ? fmt(row._savingDeduction) : '',
         row._deposit ? fmt(row._deposit) : '',
         row._depositOverflow ? fmt(row._depositOverflow) : '',
     ];
+}
+
+function formatKidneyTotal(row) {
+    if (row.总肾 === 0 && row._savingRemaining > 0) {
+        return `0(剩余${fmt(row._savingRemaining)}元)`;
+    }
+    return fmt(row.总肾);
 }
 
 function exportKidneyDetail() {
