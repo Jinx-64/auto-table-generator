@@ -1686,7 +1686,7 @@ function calculateKidney() {
     });
 
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
-    const sumRow = ['📊 合计', fmt(grandTotal), '', '', '', '', ''];
+    const sumRow = getKidneyTotalRow('📊 合计', grandTotal, blocks);
     rows.push(sumRow);
 
     const highlightCols = [1]; // 总肾 column
@@ -1721,7 +1721,7 @@ function exportKidneyResult() {
     const headers = getKidneyExportHeaders(blocks);
     const rows = results.map(r => buildKidneyExportRow(r, blocks));
     const grandTotal = results.reduce((s, r) => s + r.总肾, 0);
-    const sumRow = ['合计', fmt(grandTotal), '', '', '', '', ''];
+    const sumRow = getKidneyTotalRow('合计', grandTotal, blocks);
     rows.push(sumRow);
     const savingRows = results
         .filter(r => r._saving > 0 || r._depositOverflow > 0)
@@ -1739,24 +1739,30 @@ function exportKidneyResult() {
 }
 
 function getKidneyExportHeaders(blocks) {
-    const goodsColumn = blocks.length === 1 ? blocks[0].typeName : '谷子明细';
-    return ['cn', '总肾（元）', goodsColumn, '肾', '存肾扣除金额', '定金', '定金溢出'];
+    const headers = ['cn', '总肾（元）'];
+    blocks.forEach(block => headers.push(block.typeName, '肾'));
+    headers.push('存肾扣除金额', '定金', '定金溢出');
+    return headers;
 }
 
 function buildKidneyExportRow(row, blocks) {
-    const roleText = blocks.map(b => {
-        const roles = row[b.typeName + '_roles'] || '';
-        return blocks.length === 1 || !roles ? roles : `${b.typeName}:${roles}`;
-    }).filter(Boolean).join('；');
-    return [
-        row.CN,
-        formatKidneyTotal(row),
-        roleText,
-        fmt(row._grossTotal || 0),
+    const values = [row.CN, formatKidneyTotal(row)];
+    blocks.forEach(block => {
+        values.push(
+            row[block.typeName + '_roles'] || '',
+            row[block.typeName + '_肾'] ? fmt(row[block.typeName + '_肾']) : '',
+        );
+    });
+    values.push(
         row._savingDeduction ? fmt(row._savingDeduction) : '',
         row._deposit ? fmt(row._deposit) : '',
         row._depositOverflow ? fmt(row._depositOverflow) : '',
-    ];
+    );
+    return values;
+}
+
+function getKidneyTotalRow(label, total, blocks) {
+    return [label, fmt(total), ...blocks.flatMap(() => ['', '']), '', '', ''];
 }
 
 function formatKidneyTotal(row) {
